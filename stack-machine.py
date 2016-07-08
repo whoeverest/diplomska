@@ -79,17 +79,25 @@ class StackMachine():
     self._next()
 
   def subtract(self):
-    self.stack.append(self.stack.pop() - self.stack.pop())
+    b = self.stack.pop()
+    a = self.stack.pop()
+    self.stack.append(a - b)
     self._next()
 
 
 # Example
 
 code = [
-  ('jmp', 2),
-  ('push', 100),
-  ('push', 1),
   ('push', 2),
+  ('push', 20),
+  ('push', 10),
+  ('subtract', None),
+  ('push', 4),
+  ('push', 5),
+  ('add', None),
+  ('push', 6),
+  ('add', None),
+  ('add', None),
   ('add', None)
 ]
 
