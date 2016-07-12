@@ -45,6 +45,29 @@ add
 # if expression, eval
 
 def tokenize(string):
-  return [token.strip() for token in string.replace('(', '( ').split()]
+  more_spaces = string.replace('(', ' ( ').replace(')', ' ) ')
+  return [token.strip() for token in more_spaces.split()]
 
-print tokenize(code)
+def read_from_tokens(tokens):
+    "Read an expression from a sequence of tokens."
+    if len(tokens) == 0:
+        raise SyntaxError('unexpected EOF while reading')
+    token = tokens.pop(0)
+    if '(' == token:
+        L = []
+        while tokens[0] != ')':
+            L.append(read_from_tokens(tokens))
+        tokens.pop(0) # pop off ')'
+        return L
+    elif ')' == token:
+        raise SyntaxError('unexpected )')
+    else:
+        return atom(token)
+
+def atom(token):
+  try:
+    return int(token)
+  except:
+    return token
+
+print read_from_tokens(tokenize(code))
