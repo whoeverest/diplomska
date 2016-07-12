@@ -92,20 +92,20 @@ code = [
   ('push', 20),
   ('push', 10),
   ('subtract', None),
+  ('add', None),
   ('push', 4),
   ('push', 5),
   ('add', None),
   ('push', 6),
   ('add', None),
   ('add', None),
+  ('push', 1),
+  ('push', 2),
+  ('add', None),
   ('add', None)
 ]
 
-vars = {
-  "a": 0,
-  "b": 1,
-  "c": 2
-}
+vars = {}
 
 sm = StackMachine(code, vars)
 sm._run()
