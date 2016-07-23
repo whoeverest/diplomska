@@ -1,3 +1,5 @@
+from time import sleep
+
 class StackMachine():
 
   def __init__(self, code, vars, verbose=True):
@@ -8,6 +10,7 @@ class StackMachine():
     self.cp = 0
     self.ram = [0] * 10
     self.stack = []
+    self.output = []
 
 
   # Internal methods
@@ -57,7 +60,7 @@ class StackMachine():
 
   def load(self, var):
     location = self.vars[var]
-    self.push(self.ram[location])
+    self.stack.append(self.ram[location])
     self._next()
 
   def store(self, var):
@@ -71,8 +74,11 @@ class StackMachine():
     else:
       self._next()
 
-  def jmp(self, cp):
-    self._set_cp(cp)
+  def jnz(self, cp):
+    if self.stack[-1] != 0:
+      self._set_cp(cp)
+    else:
+      self._next()
 
   def add(self):
     self.stack.append(self.stack.pop() + self.stack.pop())
@@ -84,28 +90,61 @@ class StackMachine():
     self.stack.append(a - b)
     self._next()
 
+  def prnt(self):
+    self.output.append(self.stack[-1])
+    self._next()
 
-# Example
+
+# Example, print "100" ten times
+
+'''
+(main
+  (store a 10)
+  (while (a)
+    (print 100)
+    (store a (- (load a) 1))))
+'''
 
 code = [
-  ('push', 2),
-  ('push', 20),
-  ('push', 10),
-  ('subtract', None),
-  ('add', None),
-  ('push', 4),
-  ('push', 5),
-  ('add', None),
-  ('push', 6),
-  ('add', None),
-  ('add', None),
-  ('push', 1),
-  ('push', 2),
-  ('add', None),
-  ('add', None)
+  # a = 10
+  ('push', 10), # 0
+  ('store', 'a'), # 1
+  ('pop', None),
+
+  # eval expr
+  ('load', 'a'), # 2
+
+  ('jz', 14), # 3; jz, :end
+  
+  # :loop
+  ('pop', None), # 4
+
+  # print 100
+  ('push', 100), # 5
+  ('prnt', None), # 6
+  ('pop', None), # 7
+
+  # a += 1
+  ('load', 'a'), # 8
+  ('push', 1), # 9
+  ('subtract', None), # 10
+  ('store', 'a'), # 11
+  ('pop', None),
+
+  # eval expr
+  ('load', 'a'), # 12
+
+  ('jnz', 4), # 13; jnz, :loop
+
+  # :end
+  ('pop', None) # 14
 ]
 
-vars = {}
+vars = {
+  'a': 0
+}
 
-sm = StackMachine(code, vars)
+sm = StackMachine(code, vars, verbose=True)
 sm._run()
+
+print 'output', sm.output
