@@ -68,13 +68,13 @@ class StackMachine():
     self.ram[location] = self.stack[-1]
     self._next()
 
-  def jz(self, cp):
+  def jfz(self, cp):
     if self.stack[-1] == 0:
       self._set_cp(cp)
     else:
       self._next()
 
-  def jnz(self, cp):
+  def jbnz(self, cp):
     if self.stack[-1] != 0:
       self._set_cp(cp)
     else:
@@ -114,7 +114,7 @@ code = [
   # eval expr
   ('load', 'a'), # 2
 
-  ('jz', 14), # 3; jz, :end
+  ('jfz', 14), # 3; jz, :end
   
   # :loop
   ('pop', None), # 4
@@ -134,7 +134,7 @@ code = [
   # eval expr
   ('load', 'a'), # 12
 
-  ('jnz', 4), # 13; jnz, :loop
+  ('jbnz', 4), # 13; jnz, :loop
 
   # :end
   ('pop', None) # 14
