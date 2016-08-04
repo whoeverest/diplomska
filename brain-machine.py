@@ -1,3 +1,55 @@
+class CodeGen(object):
+  def __init__(self):
+    self.code = []
+
+  def _set(self, n):
+    self.code.append('+' * n)
+
+  def set_and_next(self, n):
+    self._set(n)
+    self.next()
+
+  def next(self):
+    self.code.append('>')
+
+  def to_string(self):
+    return ''.join(self.code)
+
+
+def init(var_arr, stack_size=50):
+  code = CodeGen()
+
+  # first row: 0 | 1 | first_var.
+  # first cell is already a zero, move forward
+  # 1 in sp column
+  # first var value
+  code.next()
+  code.set_and_next(1)
+  code.set_and_next(var_arr.pop(0))
+
+  # the rest of the variables:
+  #   1 in walk column
+  #   1 in sp column
+  #   var value
+  for n in var_arr:
+    code.set_and_next(1)
+    code.set_and_next(1)
+    code.set_and_next(n)
+
+  # stack pointer
+  code.set_and_next(1)
+  code.next() # sp cell is already 0
+  code.next() # mem[sp] = 0
+
+  # free memory, zeros: [1, 1, 0]
+  for _ in xrange(stack_size):
+    code.set_and_next(1)
+    code.set_and_next(1)
+    code.next()
+
+  return code.to_string()
+
+
 """
 # Memory layout:
 
