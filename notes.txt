@@ -1,0 +1,3 @@
+# Notes
+
+- performansite opagjaat kako shto se polni memorijata / brojot na vars i stack-ot (radi dvizhenjeto napred nazad)

@@ -1,0 +1,73 @@
+1. "(print 2)"
+
+push 2
+print
+pop
+
+2. "(print a)"
+
+load a
+print
+pop
+
+3. "(+ 2 3)" -> "(_pop (+ 2 3))"
+
+push 2
+push 3
+add
+pop
+
+4. "(let (a 2))"
+
+push 2
+store a
+pop
+
+5. "(let (a (+ 2 3)))"
+
+<add 2, 3 code>
+store a
+pop
+
+6. "(if (3) (print 100))"
+
+push 3 # eval expr
+jz, :end
+push 100
+print
+pop
+
+:end
+pop
+
+7. "(if (3) (print 100) (print 200))"
+
+push 3
+jz, :then
+push 100
+print
+pop
+
+:then
+push 200
+print
+pop
+
+:end
+pop
+
+8. "(while (expr) (print 100))"
+
+<eval expr>
+jz, :end
+
+:loop
+pop
+push 100
+print
+pop
+<eval expr>
+jmp, :loop
+
+:end
+pop
