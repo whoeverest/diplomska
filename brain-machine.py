@@ -1,23 +1,95 @@
+WLK = 'walk_lane'
+SP = 'stack_pointer_lane'
+MEM = 'memory_lane'
+
 class CodeGen(object):
   def __init__(self):
     self.code = []
 
-  def _set(self, n):
-    self.code.append('+' * n)
+  def append(self, code):
+    self.code.append(code)
+
+  def set(self, n):
+    self.append('+' * n)
 
   def set_and_next(self, n):
-    self._set(n)
+    self.set(n)
     self.next()
 
   def next(self):
-    self.code.append('>')
+    self.append('>')
+
+  def big_right(self):
+    self.append('>>>')
+
+  def big_left(self):
+    self.append('<<<')
+
+  def widen_stack(self):
+    self.append('+>>>-')
+
+  def shrink_stack(self):
+    self.append('+<<<-')
+
+  def switch_lane(self, current, target):
+    lane_jumps = {
+      WLK: {
+        SP: '>',
+        MEM: '>>'
+      },
+      SP: {
+        WLK: '<',
+        MEM: '>'
+      },
+      MEM: {
+        WLK: '<<',
+        SP: '<'
+      }
+    }
+
+    return self.append(lane_jumps[current][target])
+
+  def decrement_to_zero(self):
+    self.append('[-]')
+
+  def search_zero_left(self):
+    self.append('[<<<]')
+
+  def search_zero_right(self):
+    self.append('[>>>]')
+
+  def print_val(self):
+    self.append('.')
+
+  def read_val(self):
+    self.append(',')
+
+  def start_loop(self):
+    self.append('[')
+
+  def end_loop(self):
+    self.append(']')
+
+  def increment(self):
+    self.append('+')
+
+  def decrement(self):
+    self.append('-')
 
   def to_string(self):
     return ''.join(self.code)
 
 
-def init(var_arr, stack_size=50):
+# Init
+
+def init(user_def_vars=[], stack_size=3):
   code = CodeGen()
+
+  # registers: REG_A, REG_B, REG_C, REG_D
+  vars = [0, 0, 0, 0]
+
+  # add user defined variables
+  vars.extend(user_def_vars)
 
   # first row: 0 | 1 | first_var.
   # first cell is already a zero, move forward
@@ -25,13 +97,13 @@ def init(var_arr, stack_size=50):
   # first var value
   code.next()
   code.set_and_next(1)
-  code.set_and_next(var_arr.pop(0))
+  code.set_and_next(vars.pop(0))
 
   # the rest of the variables:
   #   1 in walk column
   #   1 in sp column
   #   var value
-  for n in var_arr:
+  for n in vars:
     code.set_and_next(1)
     code.set_and_next(1)
     code.set_and_next(n)
@@ -47,8 +119,161 @@ def init(var_arr, stack_size=50):
     code.set_and_next(1)
     code.next()
 
+  # go to SP
+  code.append('<<')
+  code.search_zero_left()
+
   return code.to_string()
 
+
+# Instructions
+
+def push(n):
+  code = CodeGen()
+
+  code.widen_stack()
+  code.switch_lane(SP, MEM)
+  code.decrement_to_zero()
+  code.set(n)
+  code.switch_lane(MEM, SP)
+
+  return code.to_string()
+
+def pop():
+  code = CodeGen()
+
+  code.shrink_stack()
+  
+  return code.to_string()
+
+def add():
+  code = CodeGen()
+
+  code.shrink_stack()
+  code.switch_lane(SP, MEM)
+  code.big_right() # go to y
+  code.append('[-<<<+>>>]') # (while (y != 0) {dec y; inc x})
+  code.big_left() # go to x
+  code.switch_lane(MEM, SP)
+
+  return code.to_string()
+
+def subtract():
+  code = CodeGen()
+
+  code.shrink_stack()
+  code.switch_lane(SP, MEM)
+  code.big_right() # go to y
+  code.append('[-<<<->>>]') # (while (y != 0) {dec y; inc x})
+  code.big_left() # go to x
+  code.switch_lane(MEM, SP)
+
+  return code.to_string()
+
+def prnt():
+  code = CodeGen()
+
+  code.switch_lane(SP, MEM)
+  code.print_val()
+  code.switch_lane(MEM, SP)
+
+  return code.to_string()
+
+def read():
+  code = CodeGen()
+
+  code.widen_stack()
+  code.switch_lane(SP, MEM)
+  code.read_val()
+  code.switch_lane(MEM, SP)
+
+  return code.to_string()
+
+def load(n):
+  code = CodeGen()
+
+  # widen stack and set val to zero
+  code.widen_stack()
+  code.switch_lane(SP, MEM)
+  code.decrement_to_zero()
+  
+  # walk to REG_A (mem[0]) and set to zero
+  code.switch_lane(MEM, WLK)
+  code.search_zero_left()
+  code.switch_lane(WLK, MEM)
+  code.decrement_to_zero()
+
+  # go to mem[n]
+  # we're at the zeroth cell, so move n-1 to the right
+  for _ in xrange(n - 1):
+    code.big_right()
+
+  # LOOP: copy the variable to stack, using REG_A as tmp
+  code.start_loop()
+
+  #   1. go to mem@sp and increment
+  code.switch_lane(MEM, WLK)
+  code.search_zero_left()
+  code.switch_lane(WLK, SP)
+  code.search_zero_right()
+  code.switch_lane(SP, MEM)
+  code.increment()
+
+  #   2. go to REG_A and increment
+  code.switch_lane(MEM, WLK)
+  code.search_zero_left()
+  code.switch_lane(WLK, MEM)
+  code.increment()
+
+  #   3. go to mem[n] and decrement
+  #   we're at the zeroth cell, so move n-1 to the right
+  for _ in xrange(n - 1):
+    code.big_right()
+  code.decrement()
+
+  # LOOP: end
+  code.end_loop()
+
+  # go to REG_A
+  code.switch_lane(MEM, WLK)
+  code.search_zero_left()
+  code.switch_lane(WLK, MEM)
+
+  # LOOP: fix mem[n]
+  code.start_loop()
+
+  #   1. go to mem[n] and increment
+  #   we're at the zeroth cell, so move n-1 to the right
+  for _ in xrange(n - 1):
+    code.big_right()
+  code.increment()
+
+  #   3. go to REG_A and decrement
+  code.switch_lane(MEM, WLK)
+  code.search_zero_left()
+  code.switch_lane(WLK, MEM)
+  code.decrement()
+
+  # LOOP: end
+  code.end_loop()
+
+  # go to sp
+  code.switch_lane(MEM, SP)
+  code.search_zero_right()
+
+  return code.to_string()
+
+
+print init([10])
+# print read()
+# print read()
+# print add()
+# print prnt()
+print load(5)
+print load(5)
+print load(5)
+print add()
+print add()
 
 """
 # Memory layout:
@@ -72,66 +297,13 @@ W | S | M
 ---------
 
 
-# Init procedure:
-
-memsize = 3 * N (set before compiling)
-
-1.
-(walk and first var)
-[0, 1, M]
-
-2.
-(rest of vars)
-[1, 1, M]
-
-3.
-(stack pointer, grows down)
-[1, 0, S]
-
-4.
-(rest of memory)
-[1, 1, 0]
-
-5.
-(move to SP)
-
-6.
-(sm instructions go here)
-
-
-# SM instructions (start at SP):
-
-
-## PUSH n:
-
-(widen the stack)
-+>>>-
-
-(move to memory cell)
->
-
-(decrement to 0)
-[-]
-
-(increment until n)
-+++..
-
-(point to SP)
-<
-
-
-## POP:
-
-(shrink the stack)
-+<<<-
-
 
 ## LOAD var (copy mem[n] to stack):
 
 (widen the stack)
 +>>>-
 
-(move to memory cell)
+(move from stack to memory cell)
 >
 
 (decrement to zero)
@@ -191,62 +363,5 @@ similar to load, but first copy from stack to mem, then shrink stack
 ]
 
 (move from mem to sp)
-
-
-## add (x = x + y; two topmost values on stack):
-
-(shrink the stack, we're pointing at "y" SP location)
-+<<<-
-
-(go from sp to y mem)
->
-
-(while (y != 0) {dec y; inc x})
-[-<<<+>>>]
-
-(go to SP)
-<
-
-
-## subtract:
-
-(shrink the stack, we're pointing at "y" SP location)
-+<<<-
-
-(go from sp to y mem)
->
-
-(while (y != 0) {dec y; dec x})
-[-<<<->>>]
-
-(go to SP)
-<
-
-## print:
-
-(go to mem)
->
-
-(print)
-.
-
-(go to sp)
-<
-
-
-## read:
-
-(widen the stack)
-+>>>-
-
-(go to mem)
->
-
-(get char from input, save on stack)
-,
-
-(go to sp)
-<
-
 """
 
