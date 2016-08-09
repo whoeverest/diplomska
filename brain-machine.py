@@ -204,8 +204,7 @@ def load(addr):
   code.decrement_to_zero()
 
   # go to mem[addr]
-  # we're at the zeroth cell, so move addr-1 rows to the right
-  for _ in xrange(addr - 1):
+  for _ in xrange(addr):
     code.big_right()
 
   # LOOP: copy the variable to stack, using REG_A as tmp
@@ -226,8 +225,7 @@ def load(addr):
   code.increment()
 
   #   3. go to mem[n] and decrement
-  #   we're at the zeroth cell, so move addr-1 rows to the right
-  for _ in xrange(addr - 1):
+  for _ in xrange(addr):
     code.big_right()
   code.decrement()
 
@@ -243,8 +241,7 @@ def load(addr):
   code.start_loop()
 
   #   1. go to mem[n] and increment
-  #   we're at the zeroth cell, so move addr-1 rows to the right
-  for _ in xrange(addr - 1):
+  for _ in xrange(addr):
     code.big_right()
   code.increment()
 
@@ -273,8 +270,7 @@ def store(addr):
   code.decrement_to_zero()
 
   # go to mem[addr] and set to zero
-  # we're at the zeroth cell, so move addr-1 rows to the right
-  for _ in xrange(addr - 1):
+  for _ in xrange(addr):
     code.big_right()
   code.decrement_to_zero()
 
@@ -294,8 +290,7 @@ def store(addr):
   code.increment()
 
   #   2. go to mem[addr] and increment
-  #   we're at the zeroth cell, so move addr-1 rows to the right
-  for _ in xrange(addr - 1):
+  for _ in xrange(addr):
     code.big_right()
   code.increment()
 
@@ -342,15 +337,87 @@ def store(addr):
 
   return code.to_string()
 
-print init([0, 0])
+# one var
+a_addr = 4
+print init([0])
+
+# a = 10
 print push(10)
-print push(20)
-print add()
-print store(5)
-print store(6)
+print store(a_addr)
 print pop()
-print push(65)
+
+# eval expr
+print load(a_addr)
+
+# jfz:
+# switch_lane(SP, MEM);
+# start_loop;
+# switch_lane(MEM, SP);
+print '>[<'
+
+# pop the evaluated value
+print pop()
+
+# print 100
+print push(100)
 print prnt()
+print pop()
+
+# a += 1
+print load(a_addr)
+print push(1)
+print subtract()
+print store(a_addr)
+print pop()
+
+# eval expr
+print load(a_addr)
+
+# jbnz
+# switch_lane(SP, MEM);
+# end_loop;
+# switch_lane(MEM, SP);
+print '>]<'
+
+# end
+print pop()
+
+"""
+code = [
+  # a = 10
+  ('push', 10), # 0
+  ('store', 'a'), # 1
+  ('pop', None),
+
+  # eval expr
+  ('load', 'a'), # 2
+
+  ('jfz', 14), # 3; jz, :end
+  
+  # :loop
+  ('pop', None), # 4
+
+  # print 100
+  ('push', 100), # 5
+  ('prnt', None), # 6
+  ('pop', None), # 7
+
+  # a += 1
+  ('load', 'a'), # 8
+  ('push', 1), # 9
+  ('subtract', None), # 10
+  ('store', 'a'), # 11
+  ('pop', None),
+
+  # eval expr
+  ('load', 'a'), # 12
+
+  ('jbnz', 4), # 13; jnz, :loop
+
+  # :end
+  ('pop', None) # 14
+]
+"""
 
 """
 # Memory layout:
