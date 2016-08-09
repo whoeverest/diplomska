@@ -164,7 +164,7 @@ def subtract():
   code.shrink_stack()
   code.switch_lane(SP, MEM)
   code.big_right() # go to y
-  code.append('[-<<<->>>]') # (while (y != 0) {dec y; inc x})
+  code.append('[-<<<->>>]') # (while (y != 0) {dec y; dec x})
   code.big_left() # go to x
   code.switch_lane(MEM, SP)
 
@@ -189,7 +189,7 @@ def read():
 
   return code.to_string()
 
-def load(n):
+def load(addr):
   code = CodeGen()
 
   # widen stack and set val to zero
@@ -203,9 +203,9 @@ def load(n):
   code.switch_lane(WLK, MEM)
   code.decrement_to_zero()
 
-  # go to mem[n]
-  # we're at the zeroth cell, so move n-1 to the right
-  for _ in xrange(n - 1):
+  # go to mem[addr]
+  # we're at the zeroth cell, so move addr-1 rows to the right
+  for _ in xrange(addr - 1):
     code.big_right()
 
   # LOOP: copy the variable to stack, using REG_A as tmp
@@ -226,8 +226,8 @@ def load(n):
   code.increment()
 
   #   3. go to mem[n] and decrement
-  #   we're at the zeroth cell, so move n-1 to the right
-  for _ in xrange(n - 1):
+  #   we're at the zeroth cell, so move addr-1 rows to the right
+  for _ in xrange(addr - 1):
     code.big_right()
   code.decrement()
 
@@ -243,8 +243,8 @@ def load(n):
   code.start_loop()
 
   #   1. go to mem[n] and increment
-  #   we're at the zeroth cell, so move n-1 to the right
-  for _ in xrange(n - 1):
+  #   we're at the zeroth cell, so move addr-1 rows to the right
+  for _ in xrange(addr - 1):
     code.big_right()
   code.increment()
 
@@ -263,17 +263,94 @@ def load(n):
 
   return code.to_string()
 
+def store(addr):
+  code = CodeGen()
 
-print init([10])
-# print read()
-# print read()
-# print add()
-# print prnt()
-print load(5)
-print load(5)
-print load(5)
+  # walk to REG_A (mem[0]) and set to zero
+  code.switch_lane(SP, WLK)
+  code.search_zero_left()
+  code.switch_lane(WLK, MEM)
+  code.decrement_to_zero()
+
+  # go to mem[addr] and set to zero
+  # we're at the zeroth cell, so move addr-1 rows to the right
+  for _ in xrange(addr - 1):
+    code.big_right()
+  code.decrement_to_zero()
+
+  # goto mem@sp
+  code.switch_lane(MEM, SP)
+  code.search_zero_right()
+  code.switch_lane(SP, MEM)
+
+
+  # LOOP: copy the var to mem[addr], using REG_A as tmp
+  code.start_loop()
+
+  #   1. walk to REG_A and increment
+  code.switch_lane(MEM, WLK)
+  code.search_zero_left()
+  code.switch_lane(WLK, MEM)
+  code.increment()
+
+  #   2. go to mem[addr] and increment
+  #   we're at the zeroth cell, so move addr-1 rows to the right
+  for _ in xrange(addr - 1):
+    code.big_right()
+  code.increment()
+
+  #   3. go to mem@sp and decrement
+  code.switch_lane(MEM, SP)
+  code.search_zero_right()
+  code.switch_lane(SP, MEM)
+  code.decrement()
+
+  # LOOP: end
+  code.end_loop()
+
+
+  # at this point, mem@sp is 0, and REG_A and mem[addr] hold the correct values
+  # now we do: mem@sp = REG_A; REG_A = 0
+
+  # walk to REG_A
+  code.switch_lane(MEM, WLK)
+  code.search_zero_left()
+  code.switch_lane(WLK, MEM)
+
+  # LOOP: fix mem@sp
+  code.start_loop()
+
+  #   1. go to mem@sp and increment
+  code.switch_lane(MEM, SP)
+  code.search_zero_right()
+  code.switch_lane(SP, MEM)
+  code.increment()
+
+  #   2. go to REG_A and decrement
+  code.switch_lane(MEM, WLK)
+  code.search_zero_left()
+  code.switch_lane(WLK, MEM)
+  code.decrement()
+
+  # LOOP: end
+  code.end_loop()
+
+
+  # go to sp
+  code.switch_lane(MEM, SP)
+  code.search_zero_right()
+
+  return code.to_string()
+
+print init([0, 0])
+print push(10)
+print push(20)
 print add()
-print add()
+print store(5)
+print store(6)
+print pop()
+print push(65)
+print prnt()
 
 """
 # Memory layout:
@@ -295,62 +372,6 @@ W | S | M
 ..
 1 | 1 | 0 (empty memory ends here)
 ---------
-
-
-
-## LOAD var (copy mem[n] to stack):
-
-(widen the stack)
-+>>>-
-
-(move from stack to memory cell)
->
-
-(decrement to zero)
-[-]
-
-(move from mem to walk lane)
-<<
-
-(find the start of memory)
-[<<<]
-
-(move from walk to mem cell, REG_A)
->>
-
-(REG_A = 0)
-[-]
-
-(at this point, REG_A (used as tmp) and mem@SP are zero)
-
-(go to mem[n], from REG_A, considering offsets)
-">>>" * N + ">>>" * offsets
-
-copy:
-  (go to mem@sp)
-  (+1)
-  (go to REG_A)
-  (+1)
-  (go to mem[n])
-  (-1)
-  (jbnz :copy)
-
-(go to REG_A)
-
-fix_mem:
-  (go to mem[n])
-  (+1)
-  (go to REG_A)
-  (-1)
-  (jbnz :fix_mem)
-
-(go to SP)
-
-
-## STORE var:
-
-similar to load, but first copy from stack to mem, then shrink stack
-
 
 ## JFZ, JBNZ:
 
