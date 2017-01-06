@@ -6,6 +6,9 @@ class CodeGen(object):
   def __init__(self):
     self.code = []
 
+  def comment(self, msg):
+    self.code.append(msg + ' ')
+
   def append(self, code):
     self.code.append(code)
 
@@ -85,6 +88,8 @@ class CodeGen(object):
 def init(user_def_vars=[], stack_size=3):
   code = CodeGen()
 
+  code.comment('init')
+
   # registers: REG_A, REG_B, REG_C, REG_D
   vars = [0, 0, 0, 0]
 
@@ -131,6 +136,7 @@ def init(user_def_vars=[], stack_size=3):
 def push(n):
   code = CodeGen()
 
+  code.comment('push_' + str(n))
   code.widen_stack()
   code.switch_lane(SP, MEM)
   code.decrement_to_zero()
@@ -142,6 +148,7 @@ def push(n):
 def pop():
   code = CodeGen()
 
+  code.comment('pop')
   code.shrink_stack()
   
   return code.to_string()
@@ -149,6 +156,7 @@ def pop():
 def add():
   code = CodeGen()
 
+  code.comment('add')
   code.shrink_stack()
   code.switch_lane(SP, MEM)
   code.big_right() # go to y
@@ -161,6 +169,7 @@ def add():
 def subtract():
   code = CodeGen()
 
+  code.comment('subtract')
   code.shrink_stack()
   code.switch_lane(SP, MEM)
   code.big_right() # go to y
@@ -173,6 +182,7 @@ def subtract():
 def prnt():
   code = CodeGen()
 
+  code.comment('print')
   code.switch_lane(SP, MEM)
   code.print_val()
   code.switch_lane(MEM, SP)
@@ -182,6 +192,7 @@ def prnt():
 def read():
   code = CodeGen()
 
+  code.comment('read')
   code.widen_stack()
   code.switch_lane(SP, MEM)
   code.read_val()
@@ -191,6 +202,8 @@ def read():
 
 def load(addr):
   code = CodeGen()
+
+  code.comment('load_addr_' + str(addr))
 
   # widen stack and set val to zero
   code.widen_stack()
@@ -262,6 +275,8 @@ def load(addr):
 
 def store(addr):
   code = CodeGen()
+
+  code.comment('store_addr_' + str(addr))
 
   # walk to REG_A (mem[0]) and set to zero
   code.switch_lane(SP, WLK)
@@ -337,6 +352,26 @@ def store(addr):
 
   return code.to_string()
 
+def jfz():
+  code = CodeGen()
+
+  code.comment('jfz')
+  code.switch_lane(SP, MEM)
+  code.start_loop()
+  code.switch_lane(MEM, SP)
+
+  return code.to_string()
+
+def jbnz():
+  code = CodeGen()
+
+  code.comment('jbnz')
+  code.switch_lane(SP, MEM)
+  code.end_loop()
+  code.switch_lane(MEM, SP)
+
+  return code.to_string()
+
 # one var
 a_addr = 4
 print init([0])
@@ -350,10 +385,7 @@ print pop()
 print load(a_addr)
 
 # jfz:
-# switch_lane(SP, MEM);
-# start_loop;
-# switch_lane(MEM, SP);
-print '>[<'
+print jfz()
 
 # pop the evaluated value
 print pop()
@@ -374,10 +406,7 @@ print pop()
 print load(a_addr)
 
 # jbnz
-# switch_lane(SP, MEM);
-# end_loop;
-# switch_lane(MEM, SP);
-print '>]<'
+print jbnz()
 
 # end
 print pop()
