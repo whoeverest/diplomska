@@ -24,9 +24,20 @@ def atom(token):
   except:
     return token
 
+# Keywords
+KW = [
+  '+', '-',
+  'let',
+  'store', 'load',
+  'if', 'while',
+  'print',
+  '=='
+]
+
 def eval(expression):
   print expression
   if type(expression) == int:
+    # Evaluate constants
     return [
       ('push', expression)
     ]
@@ -70,6 +81,56 @@ code = "(+ 2 (- 20 10) (+ 4 5 6) (+ 1 2))"
   ('push', 2),
   ('add', None),
   ('add', None)
+]
+'''
+
+# And this code:
+
+code = '''
+(
+  (store a 10)
+  (while (a)
+    (print 100)
+    (store a (- (load a) 1)))
+)
+'''
+
+# should produce:
+
+'''
+code = [
+  # a = 10
+  ('push', 10), # 0
+  ('store', 'a'), # 1
+  ('pop', None),
+
+  # eval expr
+  ('load', 'a'), # 2
+
+  ('jfz', 14), # 3; jz, :end
+  
+  # :loop
+  ('pop', None), # 4
+
+  # print 100
+  ('push', 100), # 5
+  ('prnt', None), # 6
+  ('pop', None), # 7
+
+  # a += 1
+  ('load', 'a'), # 8
+  ('push', 1), # 9
+  ('subtract', None), # 10
+  ('store', 'a'), # 11
+  ('pop', None),
+
+  # eval expr
+  ('load', 'a'), # 12
+
+  ('jbnz', 4), # 13; jnz, :loop
+
+  # :end
+  ('pop', None) # 14
 ]
 '''
 
