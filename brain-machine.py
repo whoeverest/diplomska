@@ -197,7 +197,7 @@ class CodeGenHigh(object):
 
     return code.to_string()
 
-  def negate(self, _):
+  def bnot(self, _):
     """ Converts the value on the stack to a boolean and
     negates it. For example, 2 gets converted to 0 and
     0 to 1. Destroys the original value.
@@ -237,7 +237,7 @@ class CodeGenHigh(object):
 
     return code.to_string()
 
-  def andd(self, _):
+  def band(self, _):
     """ Performs boolean AND on the two topmost
     values on the stack. Destroys the values.
     
@@ -709,7 +709,7 @@ print_100_ten_times = [
 
 if_not_two_print_100 = [
   'push 2',
-  'negate',
+  'bnot',
   'jfz',
   'push 100',
   'prnt',
@@ -722,7 +722,7 @@ if_not_two_print_100 = [
 
 if_two_print_100 = [
   'push 2',
-  # 'negate',
+  # 'bnot',
   'jfz',
   'push 100',
   'prnt',
@@ -739,20 +739,20 @@ gte = [
   'add',
   'push 5',
   'gte',
-  'negate'
+  'bnot'
 ]
 
-andd = [
+band = [
   'push 5',
-  'negate',
-  'negate',
+  'bnot',
+  'bnot',
   'push 6',
-  'negate',
-  'negate',
-  'andd'
+  'bnot',
+  'bnot',
+  'band'
 ]
 
-print sm_to_brainfuck(andd, user_def_vars=[], stack_size=4)
+print sm_to_brainfuck(band, user_def_vars=[], stack_size=4)
 
 """
 # Memory layout:
