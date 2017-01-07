@@ -204,7 +204,7 @@ class CodeGenHigh(object):
     """
     code = CodeGen()
 
-    code.comment('not')
+    code.comment('bnot')
 
     # temp0[-]
     code.widen_stack()
@@ -244,7 +244,7 @@ class CodeGenHigh(object):
     Note: `y` is the topmost value."""
 
     code = CodeGen()
-    code.comment('and')
+    code.comment('band')
 
     # Go to X
     code.shrink_stack()
@@ -434,7 +434,7 @@ class CodeGenHigh(object):
     value is NOT destroyed."""
     code = CodeGen()
 
-    code.comment('print')
+    code.comment('prnt')
     code.switch_lane(SP, MEM)
     code.print_val()
     code.switch_lane(MEM, SP)
