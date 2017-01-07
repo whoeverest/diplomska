@@ -25,11 +25,11 @@ class CodeGen(object):
   def next(self):
     self.append('>')
 
-  def big_right(self):
-    self.append('>>>')
+  def big_right(self, n=1):
+    self.append('>>>' * n)
 
-  def big_left(self):
-    self.append('<<<')
+  def big_left(self, n=1):
+    self.append('<<<' * n)
 
   def widen_stack(self):
     self.append('+>>>-')
@@ -234,6 +234,100 @@ class CodeGenHigh(object):
     code.shrink_stack()
 
     code.newline()
+
+    return code.to_string()
+
+  def gte(self, _):
+    code = CodeGen()
+
+    code.comment('gte')
+
+    # SP now, points at X.
+    code.shrink_stack()
+    code.switch_lane(SP, MEM)
+
+    # Increment X and Y by one (handling zeros)
+    code.increment()
+    code.big_right()
+    code.increment()
+    code.big_left()
+    
+    # Copy X four places to the right.
+    code.big_right(4)
+    code.decrement_to_zero()
+    code.big_left(4)
+    code.start_loop()
+    code.decrement()
+    code.big_right(4)
+    code.increment()
+    code.big_left(4)
+    code.end_loop()
+
+    # Go to Y.
+    code.big_right()
+
+    # Copy Y four places to the right
+    code.big_right(4)
+    code.decrement_to_zero()
+    code.big_left(4)
+    code.start_loop()
+    code.decrement()
+    code.big_right(4)
+    code.increment()
+    code.big_left(4)
+    code.end_loop()
+
+    # We're at Y.
+    # Set magic 1 0 0 values
+    code.big_right()
+    code.decrement_to_zero()
+    code.increment() # 1
+    code.big_right()
+    code.decrement_to_zero() # 0
+    code.big_right(3)
+    code.decrement_to_zero() # 0
+
+    # Go to temporary X value and start comparing
+    code.big_left(2)
+
+    # Magic loop: [->-[>]<<]
+    code.start_loop()
+    code.decrement()
+    code.big_right()
+    code.decrement()
+    code.start_loop()
+    code.big_right()
+    code.end_loop()
+    code.big_left(2)
+    code.end_loop()
+
+    # We're right of the "magic one"
+    # if (a >= b) block...
+    code.big_left()
+    code.start_loop() # at "magic one", enter loop if cond. is true
+    code.decrement() # "magic one" = 0
+
+    # Our code, set 1 at SP because condition was met:
+    code.big_left(2)
+    code.increment() # we're sure this mem is zero
+    code.big_right(2)
+
+    # End of block.
+    code.end_loop()
+
+    # Else block...
+    code.big_left()
+    code.start_loop()
+    code.decrement()
+    code.big_left()
+
+    # Our code: do nothing.
+
+    # End of block.
+    code.end_loop()
+
+    code.big_left()
+    code.switch_lane(MEM, SP)
 
     return code.to_string()
 
@@ -452,7 +546,7 @@ class CodeGenHigh(object):
 
 # EXPORTS
 
-def sm_to_brainfuck(code, user_def_vars=[], stack_size=3):
+def sm_to_brainfuck(code, user_def_vars, stack_size):
   """ Translates SM instructions to Brainfuck."""
   bf_code = []
   high_code_gen = CodeGenHigh()
@@ -464,7 +558,9 @@ def sm_to_brainfuck(code, user_def_vars=[], stack_size=3):
   # convert each instruction:
   #   ('push', 4) -> code.append("+++-<><>-...")
   for instr in code:
-    cmd, val = instr
+    split = instr.split()
+    cmd = split[0]
+    val = int(split[1]) if len(split) > 1 else None
     method = getattr(high_code_gen, cmd)
     bf_code.append(method(val))
 
@@ -513,17 +609,39 @@ print_100_ten_times = [
 
 # EXAMPLE 2
 
-negate = [
-  ('push', 0),
-  ('negate', None),
-
-  # get printable char
-  ('push', 70),
-  ('add', None),
-  ('prnt', None)
+if_not_two_print_100 = [
+  'push 2',
+  'negate',
+  'jfz',
+  'push 100',
+  'prnt',
+  'pop',
+  'push 0',
+  'jbnz',
+  'pop',
+  'pop'
 ]
 
-print sm_to_brainfuck(negate, user_def_vars=[0], stack_size=2)
+if_two_print_100 = [
+  'push 2',
+  # 'negate',
+  'jfz',
+  'push 100',
+  'prnt',
+  'pop',
+  'push 0',
+  'jbnz',
+  'pop',
+  'pop'
+]
+
+gte = [
+  'push 1',
+  'push 2',
+  'gte'
+]
+
+print sm_to_brainfuck(gte, user_def_vars=[], stack_size=4)
 
 """
 # Memory layout:
