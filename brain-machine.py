@@ -89,7 +89,6 @@ class CodeGen(object):
 # High level BF instructions
 
 class CodeGenHigh(object):
-
   def init(self, user_def_vars=[], stack_size=4):
     code = CodeGen()
 
@@ -232,7 +231,6 @@ class CodeGenHigh(object):
 
     code.switch_lane(MEM, SP)
     code.shrink_stack()
-
     code.newline()
 
     return code.to_string()
@@ -773,6 +771,10 @@ W | S | M
 1 | 1 | 0
 1 | 1 | 0
 ...
-1 | 1 | 0 (empty memory ends here)
+1 | 1 | 0 (initiated memory ends here)
+0 | 0 | 0
+0 | 0 | 0
+...
+(end of memory)
 ---------
 """
