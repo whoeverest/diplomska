@@ -237,7 +237,104 @@ class CodeGenHigh(object):
 
     return code.to_string()
 
+  def andd(self, _):
+    """ Performs boolean AND on the two topmost
+    values on the stack. Destroys the values.
+    
+    Note: `y` is the topmost value."""
+
+    code = CodeGen()
+    code.comment('and')
+
+    # Go to X
+    code.shrink_stack()
+    code.switch_lane(SP, MEM)
+
+    # temp0 = 0; temp1 = 0;
+    code.big_right(2)
+    code.decrement_to_zero()
+    code.big_right()
+    code.decrement_to_zero()
+
+    # Go to X
+    code.big_left(3)
+    
+    # Copy X to temp1: x[temp1+x-]
+    code.start_loop()
+    code.big_right(3)
+    code.increment()
+    code.big_left(3)
+    code.decrement()
+    code.end_loop()
+
+    # Go to temp1
+    code.big_right(3)
+
+    # START BIG LOOP:
+    code.start_loop()
+
+    # Decrement temp1 to 0
+    code.decrement_to_zero()
+
+    # Copy y to temp1 and temp0: y[temp1+temp0+y-]
+    code.big_left(2)
+    code.start_loop()
+    code.big_right(2)
+    code.increment()
+    code.big_left()
+    code.increment()
+    code.big_left()
+    code.decrement()
+    code.end_loop()
+
+    # Go to temp0; copy temp0 to y: temp0[y+temp0-]
+    code.big_right()
+    code.start_loop()
+    code.big_left()
+    code.increment()
+    code.big_right()
+    code.decrement()
+    code.end_loop()
+
+    # Go to temp1; inc x, temp1 = 0
+    code.big_right()
+    code.start_loop()
+    code.big_left(3)
+    code.increment()
+    code.big_right(3)
+    code.decrement_to_zero()
+    code.end_loop()
+
+    # END BIG LOOP.
+    code.end_loop()
+
+    # Go to X
+    code.big_left(3)
+    code.switch_lane(MEM, SP)
+    code.newline()
+
+    return code.to_string()
+    '''
+    temp0[-]
+    temp1[-]
+    x[temp1+x-]
+    temp1[
+      temp1[-]
+      y[temp1+temp0+y-]
+      temp0[y+temp0-]
+      temp1[x+temp1[-]]
+    ]
+    '''
+
+
+
   def gte(self, _):
+    """ Compares the two topmost values on the stack.
+    Returns 1 if `x` is greater-than-or-equal to `y`.
+    
+    Note: `y` is the topmost value.
+    
+    Destroys the original values."""
     code = CodeGen()
 
     code.comment('gte')
@@ -328,6 +425,7 @@ class CodeGenHigh(object):
 
     code.big_left()
     code.switch_lane(MEM, SP)
+    code.newline()
 
     return code.to_string()
 
@@ -636,12 +734,25 @@ if_two_print_100 = [
 ]
 
 gte = [
-  'push 1',
   'push 2',
-  'gte'
+  'push 3',
+  'add',
+  'push 5',
+  'gte',
+  'negate'
 ]
 
-print sm_to_brainfuck(gte, user_def_vars=[], stack_size=4)
+andd = [
+  'push 5',
+  'negate',
+  'negate',
+  'push 6',
+  'negate',
+  'negate',
+  'andd'
+]
+
+print sm_to_brainfuck(andd, user_def_vars=[], stack_size=4)
 
 """
 # Memory layout:
