@@ -24,6 +24,7 @@ def atom(token):
   except:
     return token
 
+
 # Keywords
 KW = [
   '+', '-',
@@ -31,107 +32,165 @@ KW = [
   'store', 'load',
   'if', 'while',
   'print',
-  '=='
+  '==', '<', '>', '<=', '>='
 ]
 
-def eval(expression):
-  print expression
-  if type(expression) == int:
-    # Evaluate constants
-    return [
-      ('push', expression)
-    ]
-  else:
-    if expression[0] in ['+', '-']:
-      operation = 'add' if expression[0] == '+' else 'subtract'
-      cmds = []
-      evaluated_args = map(eval, expression[1:])
-      
-      cmds.extend(evaluated_args.pop(0))
-      cmds.extend(evaluated_args.pop(0))
-      cmds.append((operation, None))
+def const(n):
+  return [
+    ('push', n)
+  ]
 
-      while evaluated_args:
-        cmds.extend(evaluated_args.pop(0))
-        cmds.append((operation, None))
+def load(addr):
+  return [
+    ('load', addr)
+  ]
 
-      return cmds
-    else:
-      raise Exception()
+def store(addr):
+  return [
+    ('store', addr)
+  ]
 
-# This code:
+def let(addr, expr):
+  res = []
+  res.extend(expr)
+  res.extend(store(addr))
+  res.append(('pop', None))
+  return res
 
-code = "(+ 2 (- 20 10) (+ 4 5 6) (+ 1 2))"
+def prnt(expr):
+  res = []
+  res.extend(expr)
+  res.append(('prnt', None))
+  res.append(('pop', None))
+  return res
 
-# produces:
-'''
-[
-  ('push', 2),
-  ('push', 20),
-  ('push', 10),
-  ('subtract', None),
-  ('add', None),
-  ('push', 4),
-  ('push', 5),
-  ('add', None),
-  ('push', 6),
-  ('add', None),
-  ('add', None),
-  ('push', 1),
-  ('push', 2),
-  ('add', None),
-  ('add', None)
-]
-'''
+def read():
+  return [('read', None)]
 
-# And this code:
+def add(load_a_expr, load_b_expr):
+  res = []
+  res.extend(load_a_expr)
+  res.extend(load_b_expr)
+  res.append(('add', None))
+  return res
 
-code = '''
-(
-  (store a 10)
-  (while (a)
-    (print 100)
-    (store a (- (load a) 1)))
+def subtract(load_a_expr, load_b_expr):
+  res = []
+  res.extend(load_a_expr)
+  res.extend(load_b_expr)
+  res.append(('subtract', None))
+  return res
+
+def gte(expr_a, expr_b):
+  res = []
+  res.extend(expr_a)
+  res.extend(expr_b)
+  res.append(('gte', None))
+  return res
+
+def eq(expr_a, expr_b):
+  '''
+  (== a b) => and(bool(a >= b), bool(b >= a))
+  '''
+  res = []
+  res.extend(expr_a)
+  res.extend(expr_b)
+  res.append(('gte', None))
+  res.append(('bnot', None))
+  res.append(('bnot', None))
+  res.extend(expr_b)
+  res.extend(expr_a)
+  res.append(('gte', None))
+  res.append(('bnot', None))
+  res.append(('bnot', None))
+  res.append(('band', None))
+  return res
+
+def neq(expr_a, expr_b):
+  res = []
+  res.extend(eq(expr_a, expr_b))
+  res.append(('bnot', None))
+  return res
+
+def lt(expr_a, expr_b):
+  res = []
+  res.extend(gte(expr_a, expr_b))
+  res.append(('bnot', None))
+  return res
+
+def lte(expr_a, expr_b):
+  return gte(expr_b, expr_a) # switched places
+
+def if_expr(cond_expr, then_expr, else_expr=None):
+  res = []
+  res.extend(cond_expr)
+
+  # Store evaluated expression in REG_B so we
+  # don't have to evaluate it twice. It's likely worth
+  # it, not sure.
+  if else_expr:
+    res.append(('store', 1))
+
+  res.append(('jfz', None))
+  res.extend(then_expr)
+
+  # make sure we don't jump backwards
+  res.append(('push', 0))
+  res.append(('jbnz', None))
+  res.append(('pop', None))
+
+  if else_expr:
+    res.append(('load', 1))
+    res.append(('bnot', None))
+    res.append(('jfz', None))
+    res.extend(else_expr)
+    res.append(('push', 0))
+    res.append(('jbnz', None))
+    res.append(('pop', None))
+
+  return res
+
+def while_expr(cond_expr, block_expr):
+  res = []
+  res.extend(cond_expr)
+  res.append(('jfz', None))
+  res.append(('pop', None)) # pop expr val from stack
+  res.extend(block_expr)
+  res.extend(cond_expr)
+  res.append(('jbnz', None))
+  res.append(('pop', None))
+  return res
+
+def blck(*exprs):
+  res = []
+  for e in exprs:
+    res.extend(e)
+  return res
+
+# print if_expr(
+#   gte(const(5), const(4)),
+#   prnt(const(100))
+# )
+
+from brain_machine import sm_to_brainfuck
+
+var = {
+  'a': 4,
+  'b': 5
+}
+
+sm = blck(
+  if_expr(
+    const(1),
+    prnt(const(65)),
+    prnt(const(70))
+  )
 )
-'''
 
-# should produce:
+print sm
 
-'''
-code = [
-  # a = 10
-  ('push', 10), # 0
-  ('store', 'a'), # 1
-  ('pop', None),
+print sm_to_brainfuck(sm, usr_mem_size=len(var), stack_size=4)
 
-  # eval expr
-  ('load', 'a'), # 2
+# prints: AAAAAAAAAAAAAAAAAAA (ascii 65)
 
-  ('jfz', 14), # 3; jz, :end
-  
-  # :loop
-  ('pop', None), # 4
-
-  # print 100
-  ('push', 100), # 5
-  ('prnt', None), # 6
-  ('pop', None), # 7
-
-  # a += 1
-  ('load', 'a'), # 8
-  ('push', 1), # 9
-  ('subtract', None), # 10
-  ('store', 'a'), # 11
-  ('pop', None),
-
-  # eval expr
-  ('load', 'a'), # 12
-
-  ('jbnz', 4), # 13; jnz, :loop
-
-  # :end
-  ('pop', None) # 14
-]
-'''
-
-print eval(read_from_tokens(tokenize(code)))
+# print eval(read_from_tokens(tokenize(code)))

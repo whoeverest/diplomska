@@ -665,12 +665,8 @@ class CodeGenHigh(object):
 
 import re
 
-def sm_to_brainfuck(code_string, usr_mem_size, stack_size):
+def sm_to_brainfuck(sm_code, usr_mem_size, stack_size):
   """ Translates SM instructions to Brainfuck."""
-
-  lines = [x.strip() for x in code_string.split('\n') if x != '']
-  code = [x for x in lines if not x.startswith('#')] # remove comments
-
   bf_code = []
   high_code_gen = CodeGenHigh()
   
@@ -680,78 +676,29 @@ def sm_to_brainfuck(code_string, usr_mem_size, stack_size):
 
   # convert each instruction:
   #   ('push', 4) -> code.append("+++-<><>-...")
-  for instr in code:
-    split = instr.split()
-    cmd = split[0]
-    val = int(split[1]) if len(split) > 1 else None
+  for instr in sm_code:
+    cmd, val = instr
     method = getattr(high_code_gen, cmd)
     bf_code.append(method(val))
 
   return ''.join(bf_code)
 
-def parse_asm(code):
+def parse_asm(code_string):
+  sm_code = []
+
   # strip and remove empty lines
   lines = [x.strip() for x in code_string.split('\n') if x != '']
 
-  # remove line comments
-  no_line_comments = [x for x in lines if not x.startswith('#')]
+  # remove comments
+  no_comments = [x for x in lines if not x.startswith('#')]
 
+  for line in no_comments:
+    split = line.split()
+    cmd = split[0]
+    val = int(split[1]) if len(split) > 1 else None
+    sm_code.append((cmd, val))
 
-
-
-# EXAMPLE
-#
-# (let (a 5) (b 5))
-# (if (== a b) (print (+ 65 5)) (print (- 70 5)))
-
-code = '''
-  # let a = 5
-  push 5
-  store 4
-  pop
-
-  # let b = 5
-  push 5
-  store 5
-  pop
-
-  # bool(a >= b)
-  load 4
-  load 5
-  gte
-  bnot
-  bnot
-
-  # bool(b >= a)
-  load 5
-  load 4
-  gte
-  bnot
-  bnot
-
-  # a == b
-  band
-
-  # if
-  jfz
-
-  # print (+ 65 5)
-  push 65
-  push 5
-  add
-  prnt
-  pop
-
-  # end of if
-  push 0
-  jbnz
-  pop
-
-  # remove boolean from stack
-  pop
-'''
-
-print sm_to_brainfuck(code, usr_mem_size=2, stack_size=5)
+  return sm_code
 
 """
 # Memory layout:
