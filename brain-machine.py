@@ -89,44 +89,24 @@ class CodeGen(object):
 # High level BF instructions
 
 class CodeGenHigh(object):
-  def init(self, user_def_vars=[], stack_size=4):
+  def init(self, usr_mem_size=0, stack_size=4):
     code = CodeGen()
 
-    code.comment('init')
+    code.comment('init m_' + str(usr_mem_size) + ' s_' + str(stack_size))
 
-    # registers: REG_A, REG_B, REG_C, REG_D
-    vars = [0, 0, 0, 0]
+    # REG_A +
+    # REG_B, REG_C, REG_D +
+    # User defined variables +
+    # SP +
+    # Stack memory
+    mem = [0, 1, 0] + \
+          [1, 1, 0] * 3 + \
+          [1, 1, 0] * usr_mem_size + \
+          [1, 0, 0] + \
+          [1, 1, 0] * (stack_size - 1) \
 
-    # add user defined variables
-    vars.extend(user_def_vars)
-
-    # first row: 0 | 1 | first_var.
-    # first cell is already a zero, move forward
-    # 1 in sp column
-    # first var value
-    code.next()
-    code.set_and_next(1)
-    code.set_and_next(vars.pop(0))
-
-    # the rest of the variables:
-    #   1 in walk column
-    #   1 in sp column
-    #   var value
-    for n in vars:
-      code.set_and_next(1)
-      code.set_and_next(1)
-      code.set_and_next(n)
-
-    # stack pointer
-    code.set_and_next(1)
-    code.next() # sp cell is already 0
-    code.next() # mem[sp] = 0
-
-    # free memory, zeros: [1, 1, 0]
-    for _ in xrange(stack_size):
-      code.set_and_next(1)
-      code.set_and_next(1)
-      code.next()
+    for val in mem:
+      code.set_and_next(val)
 
     # go to SP
     code.append('<<')
@@ -685,7 +665,7 @@ class CodeGenHigh(object):
 
 import re
 
-def sm_to_brainfuck(code_string, user_def_vars, stack_size):
+def sm_to_brainfuck(code_string, usr_mem_size, stack_size):
   """ Translates SM instructions to Brainfuck."""
 
   lines = [x.strip() for x in code_string.split('\n') if x != '']
@@ -695,7 +675,7 @@ def sm_to_brainfuck(code_string, user_def_vars, stack_size):
   high_code_gen = CodeGenHigh()
   
   # init
-  init = high_code_gen.init(user_def_vars, stack_size)
+  init = high_code_gen.init(usr_mem_size, stack_size)
   bf_code.append(init)
 
   # convert each instruction:
@@ -708,6 +688,15 @@ def sm_to_brainfuck(code_string, user_def_vars, stack_size):
     bf_code.append(method(val))
 
   return ''.join(bf_code)
+
+def parse_asm(code):
+  # strip and remove empty lines
+  lines = [x.strip() for x in code_string.split('\n') if x != '']
+
+  # remove line comments
+  no_line_comments = [x for x in lines if not x.startswith('#')]
+
+
 
 
 # EXAMPLE
@@ -746,9 +735,6 @@ code = '''
   # if
   jfz
 
-  # remove boolean from stack
-  pop
-
   # print (+ 65 5)
   push 65
   push 5
@@ -757,10 +743,15 @@ code = '''
   pop
 
   # end of if
+  push 0
   jbnz
+  pop
+
+  # remove boolean from stack
+  pop
 '''
 
-print sm_to_brainfuck(code, user_def_vars=[0, 0], stack_size=4)
+print sm_to_brainfuck(code, usr_mem_size=2, stack_size=5)
 
 """
 # Memory layout:
