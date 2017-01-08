@@ -125,12 +125,6 @@ def if_expr(cond_expr, then_expr, else_expr=None):
   res = []
   res.extend(cond_expr)
 
-  # Store evaluated expression in REG_B so we
-  # don't have to evaluate it twice. It's likely worth
-  # it, not sure.
-  if else_expr:
-    res.append(('store', 1))
-
   res.append(('jfz', None))
   res.extend(then_expr)
 
@@ -140,7 +134,7 @@ def if_expr(cond_expr, then_expr, else_expr=None):
   res.append(('pop', None))
 
   if else_expr:
-    res.append(('load', 1))
+    res.extend(cond_expr)
     res.append(('bnot', None))
     res.append(('jfz', None))
     res.extend(else_expr)
