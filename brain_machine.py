@@ -539,6 +539,118 @@ class CodeGenHigh(object):
 
     return code.to_string()
 
+  def loadrb(self, _):
+    """ Dynamic memory load: reads an address from
+    REG_B, then fetches the value found at mem[addr] and
+    stores it in REG_B.
+
+    Note: mem[0] is not accessible via `loadrb`.
+    
+    Stack count: +1
+    """
+    code = CodeGen()
+
+    code.comment('loadrb')
+
+    # Set sp_lane[1] = 0; this will be our
+    # temporary pointer which we'll gradually
+    # push to find the address in memory
+    code.switch_lane(SP, WLK)
+    code.search_zero_left()
+    code.switch_lane(WLK, SP)
+    code.big_right()
+    code.decrement()
+
+    # Go to REG_B
+    code.switch_lane(SP, MEM)
+
+    # Decrement once before start, because temp pointer
+    # is placed at sp_lane[1], not [0].
+    code.decrement()
+
+    # START LOOP (move temp pointer to correct place)
+    code.start_loop()
+
+    # Decrement REG_B
+    code.decrement()
+
+    # Go to SP lane start
+    code.switch_lane(MEM, SP)
+    code.big_left()
+
+    # Start searching for the temporary pointer
+    code.search_zero_right()
+
+    # Move the pointer to the right
+    code.increment()
+    code.big_right()
+    code.decrement()
+
+    # Go back to REG_B
+    code.switch_lane(SP, WLK)
+    code.search_zero_left()
+    code.switch_lane(WLK, MEM)
+    code.big_right()
+
+    # END LOOP (move temp pointer to correct place)
+    code.end_loop()
+
+    # Go to MEM @ temp_ptr
+    code.switch_lane(MEM, WLK)
+    code.search_zero_left()
+    code.switch_lane(WLK, SP)
+    code.search_zero_right()
+    code.switch_lane(SP, MEM)
+
+    # START LOOP (copy MEM to REG_A and REG_B)
+    code.start_loop()
+
+    code.decrement()
+    code.switch_lane(MEM, WLK)
+    code.search_zero_left()
+    code.switch_lane(WLK, MEM) # @ REG_A
+    code.increment()
+    code.big_right() # @ REG_B
+    code.increment()
+    code.switch_lane(MEM, WLK)
+    code.search_zero_left()
+    code.switch_lane(WLK, SP)
+    code.search_zero_right()
+    code.switch_lane(SP, MEM)
+
+    # END LOOP (copy MEM to REG_A and REG_B)
+    code.end_loop()
+
+    # Go to REG_A
+    code.switch_lane(MEM, WLK)
+    code.search_zero_left()
+    code.switch_lane(WLK, MEM)
+
+    # START LOOP (recover mem @ tmp_ptr from REG_A)
+    code.start_loop()
+
+    code.decrement()
+    code.switch_lane(MEM, SP)
+    code.search_zero_right()
+    code.switch_lane(SP, MEM)
+    code.increment()
+    code.switch_lane(MEM, WLK)
+    code.search_zero_left()
+    code.switch_lane(WLK, MEM)
+
+    # END LOOP (recover mem @ tmp_ptr)
+    code.end_loop()
+
+    # Find and remove temp pointer
+    code.switch_lane(MEM, SP)
+    code.search_zero_right()
+    code.increment()
+
+    # Go to SP
+    code.search_zero_right()
+
+    return code.to_string()
+
   def store(self, addr):
     """ Copies a value from the stack and pushes it
     pushes it to the specified memory address. The stack value
@@ -699,6 +811,26 @@ def parse_asm(code_string):
     sm_code.append((cmd, val))
 
   return sm_code
+
+code = '''
+  # var a = 5
+  push 65
+  store 4
+  pop
+
+  # REG_B = 4
+  push 4
+  store 1
+  pop
+
+  loadrb
+  load 1
+  prnt
+'''
+
+sm = parse_asm(code)
+
+print sm_to_brainfuck(sm, 1, 4)
 
 """
 # Memory layout:
