@@ -137,7 +137,10 @@ class CodeGenHigh(object):
     return code.to_string()
 
   def push(self, n):
-    """ Pushes a value on the stack. """
+    """ Pushes a value on the stack.
+    
+    Stack count: +1
+    """
     code = CodeGen()
 
     code.comment('push_' + str(n))
@@ -154,7 +157,10 @@ class CodeGenHigh(object):
     """ Shrinks the stack, effectively popping a value
     from the stack. The actual value remains in memory.
     Other commands need to take care of decrementing the
-    leftover value."""
+    leftover value.
+    
+    Stack count: -1
+    """
     code = CodeGen()
 
     code.comment('pop')
@@ -165,7 +171,10 @@ class CodeGenHigh(object):
 
   def add(self, _):
     """ Adds the two topmost values on the stack. The original
-    values are lost."""
+    values are lost.
+    
+    Stack count: -1
+    """
     code = CodeGen()
 
     code.comment('add')
@@ -182,7 +191,10 @@ class CodeGenHigh(object):
   def subtract(self, _):
     """ Subtracts the two topmost values on the stack.
     The original values are lost. Negative overflow is not
-    handled, what happens depends on the BF interpreter."""
+    handled, what happens depends on the BF interpreter.
+    
+    Stack count: -1
+    """
     code = CodeGen()
 
     code.comment('subtract')
@@ -200,6 +212,8 @@ class CodeGenHigh(object):
     """ Converts the value on the stack to a boolean and
     negates it. For example, 2 gets converted to 0 and
     0 to 1. Destroys the original value.
+
+    Stack count: 0
     """
     code = CodeGen()
 
@@ -239,7 +253,10 @@ class CodeGenHigh(object):
     """ Performs boolean AND on the two topmost
     values on the stack. Destroys the values.
     
-    Note: `y` is the topmost value."""
+    Note: `y` is the topmost value.
+    
+    Stack count: -1
+    """
 
     code = CodeGen()
     code.comment('band')
@@ -332,7 +349,10 @@ class CodeGenHigh(object):
     
     Note: `y` is the topmost value.
     
-    Destroys the original values."""
+    Destroys the original values.
+    
+    Stack count: -1
+    """
     code = CodeGen()
 
     code.comment('gte')
@@ -429,7 +449,10 @@ class CodeGenHigh(object):
 
   def prnt(self, _):
     """ Prints the topmost value on the stack to stdout. The
-    value is NOT destroyed."""
+    value is NOT destroyed.
+    
+    Stack count: 0
+    """
     code = CodeGen()
 
     code.comment('prnt')
@@ -441,7 +464,10 @@ class CodeGenHigh(object):
     return code.to_string()
 
   def read(self, _):
-    """ Reads a value from stdin and pushes it on the stack."""
+    """ Reads a value from stdin and pushes it on the stack.
+    
+    Stack count: +1
+    """
     code = CodeGen()
 
     code.comment('read')
@@ -455,7 +481,10 @@ class CodeGenHigh(object):
 
   def load(self, addr):
     """ Copies a value from the specified memory address and
-    pushes it on the stack. The memory is preserved."""
+    pushes it on the stack. The memory is preserved.
+    
+    Stack count: +1
+    """
     code = CodeGen()
 
     code.comment('load_addr_' + str(addr))
@@ -533,7 +562,10 @@ class CodeGenHigh(object):
   def store(self, addr):
     """ Copies a value from the stack and pushes it
     pushes it to the specified memory address. The stack value
-    is preserved."""
+    is preserved.
+    
+    Stack count: 0
+    """
     code = CodeGen()
 
     code.comment('store_addr_' + str(addr))
@@ -617,7 +649,10 @@ class CodeGenHigh(object):
   def jfz(self, _):
     """ Jump-forward-if-zero: if the stack value is zero,
     code execution continues after the corresponding
-    `jbnz` instruction."""
+    `jbnz` instruction.
+    
+    Stack count: 0
+    """
     code = CodeGen()
 
     code.comment('jfz')
@@ -629,6 +664,12 @@ class CodeGenHigh(object):
     return code.to_string()
 
   def jbnz(self, _):
+    """ Jump-back-if-not-zero: if the stack value is
+    not zero, code execution goes back to the matching
+    `jfz` instruction.
+
+    Stack count: 0
+    """
     code = CodeGen()
 
     code.comment('jbnz')
@@ -642,8 +683,14 @@ class CodeGenHigh(object):
 
 # EXPORTS
 
-def sm_to_brainfuck(code, user_def_vars, stack_size):
+import re
+
+def sm_to_brainfuck(code_string, user_def_vars, stack_size):
   """ Translates SM instructions to Brainfuck."""
+
+  lines = [x.strip() for x in code_string.split('\n') if x != '']
+  code = [x for x in lines if not x.startswith('#')] # remove comments
+
   bf_code = []
   high_code_gen = CodeGenHigh()
   
@@ -664,93 +711,56 @@ def sm_to_brainfuck(code, user_def_vars, stack_size):
 
 
 # EXAMPLE
+#
+# (let (a 5) (b 5))
+# (if (== a b) (print (+ 65 5)) (print (- 70 5)))
 
-print_100_ten_times = [
-  # a = 10
-  ('push', 10),
-  ('store', 4), # var a @ addr 4
-  ('pop', None),
+code = '''
+  # let a = 5
+  push 5
+  store 4
+  pop
 
-  # eval expr
-  ('load', 4), # var a @ addr 4
+  # let b = 5
+  push 5
+  store 5
+  pop
 
-  # JFZ
-  ('jfz', None),
-  
-  # :loop
-  ('pop', None),
+  # bool(a >= b)
+  load 4
+  load 5
+  gte
+  bnot
+  bnot
 
-  # print 100
-  ('push', 100),
-  ('prnt', None),
-  ('pop', None),
+  # bool(b >= a)
+  load 5
+  load 4
+  gte
+  bnot
+  bnot
 
-  # a += 1
-  ('load', 4), # var a @ addr 4
-  ('push', 1),
-  ('subtract', None),
-  ('store', 4), # var a @ addr 4
-  ('pop', None),
+  # a == b
+  band
 
-  # eval expr
-  ('load', 4), # var a @ addr 4
+  # if
+  jfz
 
-  # JBNZ
-  ('jbnz', None),
+  # remove boolean from stack
+  pop
 
-  # :end
-  ('pop', None)
-]
+  # print (+ 65 5)
+  push 65
+  push 5
+  add
+  prnt
+  pop
 
+  # end of if
+  jbnz
+'''
 
-# EXAMPLE 2
-
-if_not_two_print_100 = [
-  'push 2',
-  'bnot',
-  'jfz',
-  'push 100',
-  'prnt',
-  'pop',
-  'push 0',
-  'jbnz',
-  'pop',
-  'pop'
-]
-
-if_two_print_100 = [
-  'push 2',
-  # 'bnot',
-  'jfz',
-  'push 100',
-  'prnt',
-  'pop',
-  'push 0',
-  'jbnz',
-  'pop',
-  'pop'
-]
-
-gte = [
-  'push 2',
-  'push 3',
-  'add',
-  'push 5',
-  'gte',
-  'bnot'
-]
-
-band = [
-  'push 5',
-  'bnot',
-  'bnot',
-  'push 6',
-  'bnot',
-  'bnot',
-  'band'
-]
-
-print sm_to_brainfuck(band, user_def_vars=[], stack_size=4)
+print sm_to_brainfuck(code, user_def_vars=[0, 0], stack_size=4)
 
 """
 # Memory layout:
