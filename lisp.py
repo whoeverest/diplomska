@@ -45,6 +45,15 @@ def load(addr):
     ('load', addr)
   ]
 
+def loadrb(expr):
+  res = []
+  res.extend(expr)
+  res.append(('store', 1)) # REG_B
+  res.append(('pop', None))
+  res.append(('loadrb', None))
+  res.append(('load', 1))
+  return res
+
 def store(addr):
   return [
     ('store', addr)
@@ -55,6 +64,14 @@ def let(addr, expr):
   res.extend(expr)
   res.extend(store(addr))
   res.append(('pop', None))
+  return res
+
+def array(addr, l, vals):
+  if len(vals) != l:
+    raise ValueError('Arr init length mismatch')
+  res = []
+  for (a, v) in enumerate(vals):
+    res.extend(let(a + addr, const(v)))
   return res
 
 def prnt(expr):
@@ -169,15 +186,25 @@ def blck(*exprs):
 from brain_machine import sm_to_brainfuck
 
 var = {
-  'a': 4,
-  'b': 5
+  'A0': 4,
+  'A1': 5,
+  'A2': 6,
+  'A3': 7,
+  'A4': 8,
+  'A5': 9,
+  'i': 10,
 }
 
 sm = blck(
-  if_expr(
-    const(1),
-    prnt(const(65)),
-    prnt(const(70))
+  array(var['A0'], 6, [97, 110, 100, 114, 101, 106]),
+  let(var['i'], const(var['A0'])),
+  while_expr(
+    lt(load(var['i']), const(10)),
+    blck(
+      loadrb(load(var['i'])),
+      prnt([]),
+      let(var['i'], add(load(var['i']), const(1)))
+    )
   )
 )
 

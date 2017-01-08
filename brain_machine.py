@@ -649,6 +649,8 @@ class CodeGenHigh(object):
     # Go to SP
     code.search_zero_right()
 
+    code.newline()
+
     return code.to_string()
 
   def store(self, addr):
@@ -828,9 +830,9 @@ code = '''
   prnt
 '''
 
-sm = parse_asm(code)
+# sm = parse_asm(code)
 
-print sm_to_brainfuck(sm, 1, 4)
+# print sm_to_brainfuck(sm, 1, 4)
 
 """
 # Memory layout:
