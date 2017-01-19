@@ -88,6 +88,18 @@ class CodeGen(object):
 
 # High level BF instructions
 
+'''
+SM instruction cost in BF instructions:
+
+init: mem_size + stack_size
+push: (prev_num * 2) + n
+pop: 5
+add: a + b
+subtract: a + b
+bnot: n + const
+band: (a + b) * factor (total is between 137 (a,b=1) 62.5 (a,b=10) and 55.2 (a,b=255))
+'''
+
 class CodeGenHigh(object):
   def init(self, usr_mem_size=0, stack_size=4):
     code = CodeGen()
@@ -542,7 +554,7 @@ class CodeGenHigh(object):
   def loadrb(self, _):
     """ Dynamic memory load: reads an address from
     REG_B, then fetches the value found at mem[addr] and
-    stores it in REG_B.
+    pushes it on the stack.
 
     Note: mem[0] is not accessible via `loadrb`.
     
@@ -647,6 +659,130 @@ class CodeGenHigh(object):
     code.increment()
 
     # Go to SP
+    code.search_zero_right()
+
+    code.newline()
+
+    return code.to_string()
+
+  def storerb(self, _):
+    """ Dynamic memory store: pushes the value
+    on the stack to the address stored in REG_B.
+
+    Note: mem[0] is not accessible via `storerb`.
+    
+    Stack count: 0
+    """
+    code = CodeGen()
+
+    code.comment('storerb')
+
+    # Set sp_lane[1] = 0; this will be our
+    # temporary pointer which we'll gradually
+    # push to find the address in memory
+    code.switch_lane(SP, WLK)
+    code.search_zero_left()
+    code.switch_lane(WLK, SP)
+    code.big_right()
+    code.decrement()
+
+    # Go to REG_B
+    code.switch_lane(SP, MEM)
+
+    # Decrement once before start, because temp pointer
+    # is placed at sp_lane[1], not [0].
+    code.decrement()
+
+    # START LOOP (move temp pointer to correct place)
+    code.start_loop()
+
+    # Decrement REG_B
+    code.decrement()
+
+    # Go to SP lane start
+    code.switch_lane(MEM, SP)
+    code.big_left()
+
+    # Start searching for the temporary pointer
+    code.search_zero_right()
+
+    # Move the pointer to the right
+    code.increment()
+    code.big_right()
+    code.decrement()
+
+    # Go back to REG_B
+    code.switch_lane(SP, WLK)
+    code.search_zero_left()
+    code.switch_lane(WLK, MEM)
+    code.big_right()
+
+    # END LOOP (move temp pointer to correct place)
+    code.end_loop()
+
+    # Set mem[temp_ptr] = 0
+    code.switch_lane(MEM, SP)
+    code.search_zero_right()
+    code.switch_lane(SP, MEM)
+    code.decrement_to_zero()
+
+    # Go to SP, but be careful when switching lane,
+    # we need to move right, otherwise  we'll end
+    # up at the temp_pointer zero, not the SP zero
+    code.switch_lane(MEM, SP)
+    code.big_right()
+    code.search_zero_right()
+    code.switch_lane(SP, MEM)
+
+    # START LOOP (copy mem[sp] to mem[temp_ptr])
+    code.start_loop()
+
+    code.decrement()
+    code.switch_lane(MEM, WLK)
+    code.search_zero_left()
+    code.switch_lane(WLK, MEM)
+    code.increment()
+    code.switch_lane(MEM, SP)
+    code.search_zero_right()
+    code.switch_lane(SP, MEM)
+    code.increment()
+    code.switch_lane(MEM, SP)
+    code.big_right() # the same SP trick, always going right because of collision in the lane
+    code.search_zero_right()
+    code.switch_lane(SP, MEM)
+
+    # END LOOP (copy mem[sp] to REG_A and mem[temp_ptr])
+    code.end_loop()
+
+    # Remove temp_ptr (set to 1)
+    code.switch_lane(MEM, WLK)
+    code.search_zero_left()
+    code.switch_lane(WLK, SP)
+    code.search_zero_right()
+    code.increment()
+
+    # Go to REG_A
+    code.switch_lane(SP, WLK)
+    code.search_zero_left()
+    code.switch_lane(WLK, MEM)
+
+    # START LOOP (restore stack from REG_A)
+    code.start_loop()
+
+    code.decrement()
+    code.switch_lane(MEM, SP)
+    code.search_zero_right()
+    code.switch_lane(SP, MEM)
+    code.increment()
+    code.switch_lane(MEM, WLK)
+    code.search_zero_left()
+    code.switch_lane(WLK, MEM)
+
+    # END LOOP (restore stack from REG_A)
+    code.end_loop()
+
+    # Go to SP
+    code.switch_lane(MEM, SP)
     code.search_zero_right()
 
     code.newline()
@@ -815,24 +951,31 @@ def parse_asm(code_string):
   return sm_code
 
 code = '''
-  # var a = 5
-  push 65
+  push 5 # a = 5
   store 4
   pop
 
-  # REG_B = 4
+  # put reg_b = 4 (the address of a)
   push 4
   store 1
   pop
 
-  loadrb
-  load 1
+  # store 10 in "a"
+  push 10
+  storerb
+  pop
+
+  # print a
+  load 4
   prnt
+  pop
 '''
 
-# sm = parse_asm(code)
+sm = parse_asm(code)
 
-# print sm_to_brainfuck(sm, 1, 4)
+# print sm
+
+print sm_to_brainfuck(sm, 1, 4)
 
 """
 # Memory layout:

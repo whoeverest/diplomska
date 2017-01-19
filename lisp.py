@@ -66,9 +66,7 @@ def let(addr, expr):
   res.append(('pop', None))
   return res
 
-def array(addr, l, vals):
-  if len(vals) != l:
-    raise ValueError('Arr init length mismatch')
+def array(addr, vals):
   res = []
   for (a, v) in enumerate(vals):
     res.extend(let(a + addr, const(v)))
@@ -185,32 +183,72 @@ def blck(*exprs):
 
 from brain_machine import sm_to_brainfuck
 
-var = {
-  'A0': 4,
-  'A1': 5,
-  'A2': 6,
-  'A3': 7,
-  'A4': 8,
-  'A5': 9,
-  'i': 10,
+addr = {
+  'i': 4,
+  'A0': 5,
+  'A1': 6,
+  'A2': 7,
+  'A3': 8,
+  'A4': 9,
+  'A5': 10
+}
+
+'''
+(& var) ; expr gets replaced by the compiler with `(push addr)`
+
+(
+  (let myarr (97 110 100 114 101 106)) ; "andrej" in ASCII, or..
+  (let mystr "andrej")
+  (let a 10)
+  (print a) ; 10
+  (print (& a)) ; it's address
+  (let stop (add (& mystr) (len mystr))
+  (while (<= ptr stop) (
+    (let val (* str_ptr))
+    (print val)
+    (inc ptr 1) ; (let ptr (add ptr 1)) 
+  ))
+)
+'''
+
+# sm = blck(
+#   array(addr['A0'], [97, 110, 100, 114, 101, 106]), # andrej
+#   let(addr['i'], const(addr['A0'])),
+#   while_expr(
+#     lt(load(addr['i']), const(11)),
+#     blck(
+#       loadrb(load(addr['i'])),
+#       prnt([]),
+#       let(addr['i'], add(load(addr['i']), const(1)))
+#     )
+#   )
+# )
+
+addr = {
+  'm0': 4,  'm1': 5,  'm2': 6,  'm3': 7,  'm4': 8,  'm5': 9, # memory tape
+  'p0': 10, 'p1': 11, 'p2': 12, 'p3': 13, 'p4': 14, 'p5': 15, # program tape
+  'term': 16,
+  'memory_pointer': 17, # keeps memory start addr
+  'program_pointer': 18, # keeps program start addr,
+  
+  # temp vars
+  'a': 19,
+  'b': 20
 }
 
 sm = blck(
-  array(var['A0'], 6, [97, 110, 100, 114, 101, 106]),
-  let(var['i'], const(var['A0'])),
   while_expr(
-    lt(load(var['i']), const(10)),
+    lte(load(addr['program_pointer']), const(addr['p5'])), # while program pointer is within code bounds...
     blck(
-      loadrb(load(var['i'])),
-      prnt([]),
-      let(var['i'], add(load(var['i']), const(1)))
+      if_expr( # if instruction is 0 (increment):
+        eq(const(0), loadrb(load(addr['program_pointer']))),
+        # storerb is missing..
+      )
     )
   )
 )
 
-print sm
-
-print sm_to_brainfuck(sm, usr_mem_size=len(var), stack_size=4)
+print sm_to_brainfuck(sm, usr_mem_size=len(addr), stack_size=4)
 
 # prints: AAAAAAAAAAAAAAAAAAA (ascii 65)
 
