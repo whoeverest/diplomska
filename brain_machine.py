@@ -665,6 +665,95 @@ class CodeGenHigh(object):
 
     return code.to_string()
 
+
+
+  def store(self, addr):
+    """ Copies a value from the stack and pushes it
+    pushes it to the specified memory address. The stack value
+    is preserved.
+    
+    Stack count: 0
+    """
+    code = CodeGen()
+
+    code.comment('store_addr_' + str(addr))
+
+    # walk to REG_A (mem[0]) and set to zero
+    code.switch_lane(SP, WLK)
+    code.search_zero_left()
+    code.switch_lane(WLK, MEM)
+    code.decrement_to_zero()
+
+    # go to mem[addr] and set to zero
+    for _ in xrange(addr):
+      code.big_right()
+    code.decrement_to_zero()
+
+    # goto mem@sp
+    code.switch_lane(MEM, SP)
+    code.search_zero_right()
+    code.switch_lane(SP, MEM)
+
+
+    # LOOP: copy the var to mem[addr], using REG_A as tmp
+    code.start_loop()
+
+    #   1. walk to REG_A and increment
+    code.switch_lane(MEM, WLK)
+    code.search_zero_left()
+    code.switch_lane(WLK, MEM)
+    code.increment()
+
+    #   2. go to mem[addr] and increment
+    for _ in xrange(addr):
+      code.big_right()
+    code.increment()
+
+    #   3. go to mem@sp and decrement
+    code.switch_lane(MEM, SP)
+    code.search_zero_right()
+    code.switch_lane(SP, MEM)
+    code.decrement()
+
+    # LOOP: end
+    code.end_loop()
+
+
+    # at this point, mem@sp is 0, and REG_A and mem[addr] hold the correct values
+    # now we do: mem@sp = REG_A; REG_A = 0
+
+    # walk to REG_A
+    code.switch_lane(MEM, WLK)
+    code.search_zero_left()
+    code.switch_lane(WLK, MEM)
+
+    # LOOP: fix mem@sp
+    code.start_loop()
+
+    #   1. go to mem@sp and increment
+    code.switch_lane(MEM, SP)
+    code.search_zero_right()
+    code.switch_lane(SP, MEM)
+    code.increment()
+
+    #   2. go to REG_A and decrement
+    code.switch_lane(MEM, WLK)
+    code.search_zero_left()
+    code.switch_lane(WLK, MEM)
+    code.decrement()
+
+    # LOOP: end
+    code.end_loop()
+
+
+    # go to sp
+    code.switch_lane(MEM, SP)
+    code.search_zero_right()
+
+    code.newline()
+
+    return code.to_string()
+
   def storerb(self, _):
     """ Dynamic memory store: pushes the value
     on the stack to the address stored in REG_B.
@@ -782,93 +871,6 @@ class CodeGenHigh(object):
     code.end_loop()
 
     # Go to SP
-    code.switch_lane(MEM, SP)
-    code.search_zero_right()
-
-    code.newline()
-
-    return code.to_string()
-
-  def store(self, addr):
-    """ Copies a value from the stack and pushes it
-    pushes it to the specified memory address. The stack value
-    is preserved.
-    
-    Stack count: 0
-    """
-    code = CodeGen()
-
-    code.comment('store_addr_' + str(addr))
-
-    # walk to REG_A (mem[0]) and set to zero
-    code.switch_lane(SP, WLK)
-    code.search_zero_left()
-    code.switch_lane(WLK, MEM)
-    code.decrement_to_zero()
-
-    # go to mem[addr] and set to zero
-    for _ in xrange(addr):
-      code.big_right()
-    code.decrement_to_zero()
-
-    # goto mem@sp
-    code.switch_lane(MEM, SP)
-    code.search_zero_right()
-    code.switch_lane(SP, MEM)
-
-
-    # LOOP: copy the var to mem[addr], using REG_A as tmp
-    code.start_loop()
-
-    #   1. walk to REG_A and increment
-    code.switch_lane(MEM, WLK)
-    code.search_zero_left()
-    code.switch_lane(WLK, MEM)
-    code.increment()
-
-    #   2. go to mem[addr] and increment
-    for _ in xrange(addr):
-      code.big_right()
-    code.increment()
-
-    #   3. go to mem@sp and decrement
-    code.switch_lane(MEM, SP)
-    code.search_zero_right()
-    code.switch_lane(SP, MEM)
-    code.decrement()
-
-    # LOOP: end
-    code.end_loop()
-
-
-    # at this point, mem@sp is 0, and REG_A and mem[addr] hold the correct values
-    # now we do: mem@sp = REG_A; REG_A = 0
-
-    # walk to REG_A
-    code.switch_lane(MEM, WLK)
-    code.search_zero_left()
-    code.switch_lane(WLK, MEM)
-
-    # LOOP: fix mem@sp
-    code.start_loop()
-
-    #   1. go to mem@sp and increment
-    code.switch_lane(MEM, SP)
-    code.search_zero_right()
-    code.switch_lane(SP, MEM)
-    code.increment()
-
-    #   2. go to REG_A and decrement
-    code.switch_lane(MEM, WLK)
-    code.search_zero_left()
-    code.switch_lane(WLK, MEM)
-    code.decrement()
-
-    # LOOP: end
-    code.end_loop()
-
-
-    # go to sp
     code.switch_lane(MEM, SP)
     code.search_zero_right()
 

@@ -45,19 +45,26 @@ def load(addr):
     ('load', addr)
   ]
 
-def loadrb(expr):
+def loadrb(compute_addr_expr):
   res = []
-  res.extend(expr)
+  res.extend(compute_addr_expr)
   res.append(('store', 1)) # REG_B
   res.append(('pop', None))
   res.append(('loadrb', None))
-  res.append(('load', 1))
   return res
 
 def store(addr):
   return [
     ('store', addr)
   ]
+
+def storerb(compute_addr_expr):
+  res = []
+  res.extend(compute_addr_expr)
+  res.append(('store', 1)) # REG_B
+  res.append(('pop', None))
+  res.append(('storerb'))
+  return res
 
 def let(addr, expr):
   res = []
@@ -183,72 +190,52 @@ def blck(*exprs):
 
 from brain_machine import sm_to_brainfuck
 
-addr = {
-  'i': 4,
-  'A0': 5,
-  'A1': 6,
-  'A2': 7,
-  'A3': 8,
-  'A4': 9,
-  'A5': 10
-}
-
-'''
-(& var) ; expr gets replaced by the compiler with `(push addr)`
-
-(
-  (let myarr (97 110 100 114 101 106)) ; "andrej" in ASCII, or..
-  (let mystr "andrej")
-  (let a 10)
-  (print a) ; 10
-  (print (& a)) ; it's address
-  (let stop (add (& mystr) (len mystr))
-  (while (<= ptr stop) (
-    (let val (* str_ptr))
-    (print val)
-    (inc ptr 1) ; (let ptr (add ptr 1)) 
-  ))
-)
-'''
-
-# sm = blck(
-#   array(addr['A0'], [97, 110, 100, 114, 101, 106]), # andrej
-#   let(addr['i'], const(addr['A0'])),
-#   while_expr(
-#     lt(load(addr['i']), const(11)),
-#     blck(
-#       loadrb(load(addr['i'])),
-#       prnt([]),
-#       let(addr['i'], add(load(addr['i']), const(1)))
-#     )
-#   )
-# )
-
-addr = {
-  'm0': 4,  'm1': 5,  'm2': 6,  'm3': 7,  'm4': 8,  'm5': 9, # memory tape
-  'p0': 10, 'p1': 11, 'p2': 12, 'p3': 13, 'p4': 14, 'p5': 15, # program tape
-  'term': 16,
-  'memory_pointer': 17, # keeps memory start addr
-  'program_pointer': 18, # keeps program start addr,
+# addr = {
+#   'm0': 4,  'm1': 5,  'm2': 6,  'm3': 7,  'm4': 8,  'm5': 9, # memory tape
+#   'p0': 10, 'p1': 11, 'p2': 12, 'p3': 13, 'p4': 14, 'p5': 15, # program tape
+#   'term': 16,
+#   'm_ptr': 17, # keeps memory start addr
+#   'p_ptr': 18, # keeps program start addr,
   
-  # temp vars
-  'a': 19,
-  'b': 20
+#   # temp vars
+#   'a': 19,
+#   'b': 20
+# }
+
+addr = {
+  'a': 4,
+  'p': 5,
+  'afterp': 6
 }
+
+def assign_var(var, val_expr):
+  res = []
+  res.extend(val_expr)
+  res.append(('store', addr[var]))
+  res.append(('pop', None))
+  return res
+
+def assign_at_addr(addr_expr, val_expr):
+  res = []
+  res.extend(val_expr)
+  res.extend(addr_expr)
+  res.append(('store', 1)) # REG_B
+  res.append(('pop', None))
+  res.append(('storerb', None))
+  res.append(('pop', None))
+  return res
+
+def ptr(var):
+  return const(addr[var])
 
 sm = blck(
-  while_expr(
-    lte(load(addr['program_pointer']), const(addr['p5'])), # while program pointer is within code bounds...
-    blck(
-      if_expr( # if instruction is 0 (increment):
-        eq(const(0), loadrb(load(addr['program_pointer']))),
-        # storerb is missing..
-      )
-    )
-  )
+  assign_var('a', const(5)),
+  assign_var('p', ptr('a')),
+  assign_at_addr(add(ptr('p'), const(1)), const(10)),
 )
 
-print sm_to_brainfuck(sm, usr_mem_size=len(addr), stack_size=4)
+print 'aaaa'
+print sm_to_brainfuck(sm, usr_mem_size=len(addr), stack_size=7)
 
 # prints: AAAAAAAAAAAAAAAAAAA (ascii 65)
 
