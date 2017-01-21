@@ -197,18 +197,22 @@ def a(var):
 # +: 1
 # <: 2
 # >: 3
+# ,: 4
+# .: 5
 
 bf_in_bf_code = blck(
+  # init
   assign_arr(a('memory'), [10, 10, 10, 10, 10, 10]),
-  assign_arr(a('program'), [1, 3, 1, 3, 0, 0]),
+  assign_arr(a('program'), [4, 3, 4, 3, 4, 3]),
   assign(a('m_ptr'), const(a('memory'))),
   assign(a('p_ptr'), const(a('program'))),
+
   while_expr(
     lt(load(a('p_ptr')), const(16)), # while program ptr is within code bounds:
     blck(
       assign(a('curr_instr'), load_dyn(load(a('p_ptr')))),
       
-      # 0 is 'decrement'
+      # DECREMENT: 0
       if_expr(
         eq(load(a('curr_instr')), const(0)),
         blck(
@@ -221,12 +225,11 @@ bf_in_bf_code = blck(
           assign_dyn(
             load(a('m_ptr')),
             load(a('curr_mem'))
-          ),
-          prnt(const(0))
+          )
         )
       ),
 
-      # 1 is 'increment'
+      # INCREMENT: 1
       if_expr(
         eq(load(a('curr_instr')), const(1)),
         blck(
@@ -239,32 +242,48 @@ bf_in_bf_code = blck(
           assign_dyn(
             load(a('m_ptr')),
             load(a('curr_mem'))
-          ),
-          prnt(const(1))
+          )
         )
       ),
 
-      # 2 is 'move mem_ptr left'
+      # MOVE LEFT: 2
       if_expr(
         eq(load(a('curr_instr')), const(2)),
         blck(
           assign(
             a('m_ptr'),
             subtract(load(a('m_ptr')), const(1))
-          ),
-          prnt(const(2))
+          )
         )
       ),
 
-      # 3 is 'move mem_ptr left'
+      # MOVE RIGHT: 3
       if_expr(
         eq(load(a('curr_instr')), const(3)),
         blck(
           assign(
             a('m_ptr'),
             add(load(a('m_ptr')), const(1))
-          ),
-          prnt(const(2))
+          )
+        )
+      ),
+
+      # READ: 4
+      if_expr(
+        eq(load(a('curr_instr')), const(4)),
+        blck(
+          assign_dyn(
+            load(a('m_ptr')),
+            read()
+          )
+        )
+      ),
+
+      # WRITE: 5
+      if_expr(
+        eq(load(a('curr_instr')), const(5)),
+        blck(
+          prnt(load_dyn(load(a('m_ptr'))))
         )
       ),
 
@@ -286,6 +305,7 @@ from bf import Brainfuck
 bf_code = sm_to_brainfuck(bf_in_bf_code, usr_mem_size=len(addr), stack_size=15)
 
 machine = Brainfuck(bf_code)
+machine.input = [50, 30, 14]
 machine.run()
 
 print machine
