@@ -31,11 +31,18 @@ def const(n):
     ('push', n)
   ]
 
-def array(addr, vals):
+def char(s):
+  return const(ord(s))
+
+def assign_arr(addr, vals):
   res = []
   for (a, v) in enumerate(vals):
-    res.extend(let(a + addr, const(v)))
+    res.extend(assign(a + addr, const(v)))
   return res
+
+def assign_string(addr, string):
+  vals = [ord(ch) for ch in string]
+  return assign_arr(addr, vals)
 
 def prnt(expr):
   res = []
@@ -174,62 +181,109 @@ def blck(*exprs):
 
 
 
-# addr = {
-#   'm0': 4,  'm1': 5,  'm2': 6,  'm3': 7,  'm4': 8,  'm5': 9, # memory tape
-#   'p0': 10, 'p1': 11, 'p2': 12, 'p3': 13, 'p4': 14, 'p5': 15, # program tape
-#   'term': 16,
-#   'm_ptr': 17, # keeps memory start addr
-#   'p_ptr': 18, # keeps program start addr,
-  
-#   # temp vars
-#   'a': 19,
-#   'b': 20
-# }
-
 addr = {
-  'my_var': 4,
-  'next_var': 5,
-  'p': 6,
-  'tmp': 7
+  'memory': 4,  'm1': 5,  'm2': 6,  'm3': 7,  'm4': 8,  'm5': 9,  # memory tape
+  'program': 10, 'p1': 11, 'p2': 12, 'p3': 13, 'p4': 14, 'p5': 15, # program tape
+  'm_ptr': 16, # memory arr ptr
+  'p_ptr': 17, # program arr ptr
+  'curr_instr': 18,
+  'curr_mem': 19
 }
 
 def a(var):
   return addr[var]
 
+# -: 0
+# +: 1
+# <: 2
+# >: 3
 
-# Example
+bf_in_bf_code = blck(
+  assign_arr(a('memory'), [10, 10, 10, 10, 10, 10]),
+  assign_arr(a('program'), [1, 3, 1, 3, 0, 0]),
+  assign(a('m_ptr'), const(a('memory'))),
+  assign(a('p_ptr'), const(a('program'))),
+  while_expr(
+    lt(load(a('p_ptr')), const(16)), # while program ptr is within code bounds:
+    blck(
+      assign(a('curr_instr'), load_dyn(load(a('p_ptr')))),
+      
+      # 0 is 'decrement'
+      if_expr(
+        eq(load(a('curr_instr')), const(0)),
+        blck(
+          # curr_mem = *mem_ptr + 1
+          assign(
+            a('curr_mem'),
+            subtract(load_dyn(load(a('m_ptr'))), const(1))
+          ),
+          # *m_ptr = curr_mem
+          assign_dyn(
+            load(a('m_ptr')),
+            load(a('curr_mem'))
+          ),
+          prnt(const(0))
+        )
+      ),
 
-sm_code = blck(
-  # my_var = 5; next_var = 10
-  assign(a('my_var'), const(5)),
-  assign(a('next_var'), const(10)),
+      # 1 is 'increment'
+      if_expr(
+        eq(load(a('curr_instr')), const(1)),
+        blck(
+          # curr_mem = *mem_ptr - 1
+          assign(
+            a('curr_mem'),
+            add(load_dyn(load(a('m_ptr'))), const(1))
+          ),
+          # *m_ptr = curr_mem
+          assign_dyn(
+            load(a('m_ptr')),
+            load(a('curr_mem'))
+          ),
+          prnt(const(1))
+        )
+      ),
 
-  # print `my_var`
-  prnt(load(a('my_var'))),
+      # 2 is 'move mem_ptr left'
+      if_expr(
+        eq(load(a('curr_instr')), const(2)),
+        blck(
+          assign(
+            a('m_ptr'),
+            subtract(load(a('m_ptr')), const(1))
+          ),
+          prnt(const(2))
+        )
+      ),
 
-  # `p` keeps the address of `my_var` in address 5
-  assign(a('p'), const(a('my_var'))),
+      # 3 is 'move mem_ptr left'
+      if_expr(
+        eq(load(a('curr_instr')), const(3)),
+        blck(
+          assign(
+            a('m_ptr'),
+            add(load(a('m_ptr')), const(1))
+          ),
+          prnt(const(2))
+        )
+      ),
 
-  # print the address of `my_var` (the contents of `p`)
-  prnt(load(a('p'))),
-
-  # print the memory pointed at by `p`
-  prnt(load_dyn(load(a('p')))),
-
-  # print the cell after `my_var`:
-  # tmp = p + 1;
-  # print *tmp
-  assign(a('tmp'), add(load(a('p')), const(1))),
-  prnt(load_dyn(load(a('tmp'))))
+      # move code pointer to the right
+      assign(
+        a('p_ptr'),
+        add(load(a('p_ptr')), const(1))
+      )
+    )
+  )
 )
 
 
-# Execute the code
+# Execute
 
 from brain_machine import sm_to_brainfuck
 from bf import Brainfuck
 
-bf_code = sm_to_brainfuck(sm_code, usr_mem_size=len(addr), stack_size=7)
+bf_code = sm_to_brainfuck(bf_in_bf_code, usr_mem_size=len(addr), stack_size=15)
 
 machine = Brainfuck(bf_code)
 machine.run()

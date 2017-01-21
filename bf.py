@@ -13,13 +13,15 @@ class Brainfuck(object):
       ']': 'jbnz'
     }
 
-    self.memory = [0] * (20 * 3)
+    self.memory = [0] * (40 * 3)
     self.pointer = 0
     self.code_pointer = 0
     self.input = []
     self.output = []
     self.annotations = [] # (start, text)
     self.bracket_map = {}
+    self.start_time = 0
+    self.end_time = 0
 
     self._load_annotated_code(code)
     self._map_brackets()
@@ -105,7 +107,7 @@ class Brainfuck(object):
         stack.append(i)
       elif char == ']':
         if len(stack) == 0:
-          raise Error('Closing parenthesis is missing')
+          raise Exception('Closing parenthesis is missing')
         start, stop = stack.pop(), i
         self.bracket_map[start] = stop
         self.bracket_map[stop] = start
@@ -122,10 +124,16 @@ class Brainfuck(object):
 
   def i_inc(self):
     self.memory[self.pointer] += 1
+    if self.memory[self.pointer] > 255:
+      print self
+      raise Exception('overflow')
     self.code_pointer += 1
 
   def i_dec(self):
     self.memory[self.pointer] -= 1
+    if self.memory[self.pointer] < 0:
+      print self
+      raise Exception('underflow')
     self.code_pointer += 1
 
   def i_print(self):
