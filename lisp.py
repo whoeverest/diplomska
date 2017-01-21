@@ -25,53 +25,11 @@ def atom(token):
     return token
 
 
-# Keywords
-KW = [
-  '+', '-',
-  'let',
-  'store', 'load',
-  'if', 'while',
-  'print',
-  '==', '<', '>', '<=', '>='
-]
 
 def const(n):
   return [
     ('push', n)
   ]
-
-def load(addr):
-  return [
-    ('load', addr)
-  ]
-
-def loadrb(compute_addr_expr):
-  res = []
-  res.extend(compute_addr_expr)
-  res.append(('store', 1)) # REG_B
-  res.append(('pop', None))
-  res.append(('loadrb', None))
-  return res
-
-def store(addr):
-  return [
-    ('store', addr)
-  ]
-
-def storerb(compute_addr_expr):
-  res = []
-  res.extend(compute_addr_expr)
-  res.append(('store', 1)) # REG_B
-  res.append(('pop', None))
-  res.append(('storerb'))
-  return res
-
-def let(addr, expr):
-  res = []
-  res.extend(expr)
-  res.extend(store(addr))
-  res.append(('pop', None))
-  return res
 
 def array(addr, vals):
   res = []
@@ -88,6 +46,37 @@ def prnt(expr):
 
 def read():
   return [('read', None)]
+
+def assign(addr, val_expr):
+  res = []
+  res.extend(val_expr)
+  res.append(('store', addr))
+  res.append(('pop', None))
+  return res
+
+def assign_dyn(addr_expr, val_expr):
+  res = []
+  res.extend(val_expr)
+  res.extend(addr_expr)
+  res.append(('store', 1)) # REG_B
+  res.append(('pop', None))
+  res.append(('storerb', None))
+  res.append(('pop', None))
+  return res
+
+def load(addr):
+  return [
+    ('load', addr)
+  ]
+
+def load_dyn(addr_expr):
+  res = []
+  res.extend(addr_expr)
+  res.append(('store', 1)) # REG_B
+  res.append(('pop', None))
+  res.append(('loadrb', None))
+  res.append(('load', 1))
+  return res
 
 def add(load_a_expr, load_b_expr):
   res = []
@@ -183,12 +172,7 @@ def blck(*exprs):
     res.extend(e)
   return res
 
-# print if_expr(
-#   gte(const(5), const(4)),
-#   prnt(const(100))
-# )
 
-from brain_machine import sm_to_brainfuck
 
 # addr = {
 #   'm0': 4,  'm1': 5,  'm2': 6,  'm3': 7,  'm4': 8,  'm5': 9, # memory tape
@@ -203,40 +187,51 @@ from brain_machine import sm_to_brainfuck
 # }
 
 addr = {
-  'a': 4,
-  'p': 5,
-  'afterp': 6
+  'my_var': 4,
+  'next_var': 5,
+  'p': 6,
+  'tmp': 7
 }
 
-def assign_var(var, val_expr):
-  res = []
-  res.extend(val_expr)
-  res.append(('store', addr[var]))
-  res.append(('pop', None))
-  return res
+def a(var):
+  return addr[var]
 
-def assign_at_addr(addr_expr, val_expr):
-  res = []
-  res.extend(val_expr)
-  res.extend(addr_expr)
-  res.append(('store', 1)) # REG_B
-  res.append(('pop', None))
-  res.append(('storerb', None))
-  res.append(('pop', None))
-  return res
 
-def ptr(var):
-  return const(addr[var])
+# Example
 
-sm = blck(
-  assign_var('a', const(5)),
-  assign_var('p', ptr('a')),
-  assign_at_addr(add(ptr('p'), const(1)), const(10)),
+sm_code = blck(
+  # my_var = 5; next_var = 10
+  assign(a('my_var'), const(5)),
+  assign(a('next_var'), const(10)),
+
+  # print `my_var`
+  prnt(load(a('my_var'))),
+
+  # `p` keeps the address of `my_var` in address 5
+  assign(a('p'), const(a('my_var'))),
+
+  # print the address of `my_var` (the contents of `p`)
+  prnt(load(a('p'))),
+
+  # print the memory pointed at by `p`
+  prnt(load_dyn(load(a('p')))),
+
+  # print the cell after `my_var`:
+  # tmp = p + 1;
+  # print *tmp
+  assign(a('tmp'), add(load(a('p')), const(1))),
+  prnt(load_dyn(load(a('tmp'))))
 )
 
-print 'aaaa'
-print sm_to_brainfuck(sm, usr_mem_size=len(addr), stack_size=7)
 
-# prints: AAAAAAAAAAAAAAAAAAA (ascii 65)
+# Execute the code
 
-# print eval(read_from_tokens(tokenize(code)))
+from brain_machine import sm_to_brainfuck
+from bf import Brainfuck
+
+bf_code = sm_to_brainfuck(sm_code, usr_mem_size=len(addr), stack_size=7)
+
+machine = Brainfuck(bf_code)
+machine.run()
+
+print machine

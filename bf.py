@@ -1,3 +1,5 @@
+import time
+
 class Brainfuck(object):
   def __init__(self, code):
     self.instruction_methods = {
@@ -11,7 +13,7 @@ class Brainfuck(object):
       ']': 'jbnz'
     }
 
-    self.memory = [0] * 200
+    self.memory = [0] * (20 * 3)
     self.pointer = 0
     self.code_pointer = 0
     self.input = []
@@ -23,6 +25,33 @@ class Brainfuck(object):
     self._map_brackets()
 
     self.execution_log = [0] * len(self.code)
+
+  def __str__(self):
+    print 'output:', self.output
+    print 't:', (self.end_time - self.start_time) * 1000, 'ms'
+    print
+    print 'input:', self.input
+    print 'pointer:', self.pointer
+    print 'code pointer:', self.code_pointer
+    print 'code length:', len(self.code)
+    print 'executed instructions:', sum(self.execution_log)
+    
+    print 'memory:'
+    for i in xrange(0, len(self.memory), 3):
+      print self.memory[i:i+3],
+      if i == 0:
+        print '\tREG_A',
+      elif i == 3:
+        print '\tREG_B',
+      elif i == 6:
+        print '\tREG_C',
+      elif i == 9:
+        print '\tREG_D',
+      elif self.memory[i + 1] == 0 and self.memory[i] != 0:
+        print '\t<--SP',
+      print
+    
+    return '' # incorrect but whatever
 
   def _load_annotated_code(self, code):
     """ Annotated is the code that is in the form of:
@@ -122,48 +151,9 @@ class Brainfuck(object):
       self.code_pointer += 1
 
   def run(self):
+    self.start_time = time.time()
     while self.code_pointer < len(self.code):
       self.execution_log[self.code_pointer] += 1
       symbol = self.code[self.code_pointer]
       self._decode_and_execute(symbol)
-
-
-code = '''
-init m_1 s_4: >+>>+>+>>+>+>>+>+>>+>+>>+>>>+>+>>+>+>>+>+>><<[<<<]
-push_5: +>>>->[-]+++++<
-store_addr_4: <[<<<]>>[-]>>>>>>>>>>>>[-]<[>>>]>[<<[<<<]>>+>>>>>>>>>>>>+<[>>>]>-]<<[<<<]>>[<[>>>]>+<<[<<<]>>-]<[>>>]
-pop: +<<<-
-push_4: +>>>->[-]++++<
-store_addr_1: <[<<<]>>[-]>>>[-]<[>>>]>[<<[<<<]>>+>>>+<[>>>]>-]<<[<<<]>>[<[>>>]>+<<[<<<]>>-]<[>>>]
-pop: +<<<-
-push_10: +>>>->[-]++++++++++<
-storerb: <[<<<]>>>>->-[-<<<<[>>>]+>>>-<[<<<]>>>>>]<[>>>]>[-]<>>>[>>>]>[-<<[<<<]>>+<[>>>]>+<>>>[>>>]>]<<[<<<]>[>>>]+<[<<<]>>[-<[>>>]>+<<[<<<]>>]<[>>>]
-pop: +<<<-
-load_addr_4: +>>>->[-]<<[<<<]>>[-]>>>>>>>>>>>>[<<[<<<]>[>>>]>+<<[<<<]>>+>>>>>>>>>>>>-]<<[<<<]>>[>>>>>>>>>>>>+<<[<<<]>>-]<[>>>]
-prnt: >.<
-pop: +<<<-
-'''
-
-b = Brainfuck(code)
-b.run()
-
-for a1, a2 in zip(b.annotations, b.annotations[1:]):
-  start = a1[0]
-  end = a2[0]
-  slice = b.execution_log[start:end]
-  print a1[1], sum(slice)
-
-print
-print 'Total:', sum(b.execution_log)
-
-counter = {}
-for n, sym in zip(b.execution_log, b.code):
-  if sym not in counter:
-    counter[sym] = 0
-  counter[sym] += n
-
-print 'By-instruction breakdown:'
-print counter
-print b.output
-# print b.annotations[0][1]
-# print sum(b.execution_log[b.annotations[0][0] : b.annotations[1][0]])
+    self.end_time = time.time()

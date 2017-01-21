@@ -665,8 +665,6 @@ class CodeGenHigh(object):
 
     return code.to_string()
 
-
-
   def store(self, addr):
     """ Copies a value from the stack and pushes it
     pushes it to the specified memory address. The stack value
@@ -744,7 +742,6 @@ class CodeGenHigh(object):
 
     # LOOP: end
     code.end_loop()
-
 
     # go to sp
     code.switch_lane(MEM, SP)
@@ -915,8 +912,6 @@ class CodeGenHigh(object):
 
 # EXPORTS
 
-import re
-
 def sm_to_brainfuck(sm_code, usr_mem_size, stack_size):
   """ Translates SM instructions to Brainfuck."""
   bf_code = []
@@ -951,57 +946,3 @@ def parse_asm(code_string):
     sm_code.append((cmd, val))
 
   return sm_code
-
-code = '''
-  push 5 # a = 5
-  store 4
-  pop
-
-  # put reg_b = 4 (the address of a)
-  push 4
-  store 1
-  pop
-
-  # store 10 in "a"
-  push 10
-  storerb
-  pop
-
-  # print a
-  load 4
-  prnt
-  pop
-'''
-
-sm = parse_asm(code)
-
-# print sm
-
-print sm_to_brainfuck(sm, 1, 4)
-
-"""
-# Memory layout:
-
-W | S | M
----------
-0 | 1 | M (REG_A)
-1 | 1 | M (REG_B)
-1 | 1 | M (REG_C)
-1 | 1 | M (REG_D)
-1 | 1 | M (var a)
-1 | 1 | M (var b)
-...
-1 | 1 | S (oldest stack val)
-1 | 1 | S (older stack val)
-1 | 0 | S (<- stack pointer)
-1 | 1 | 0
-1 | 1 | 0
-1 | 1 | 0
-...
-1 | 1 | 0 (initiated memory ends here)
-0 | 0 | 0
-0 | 0 | 0
-...
-(end of memory)
----------
-"""
