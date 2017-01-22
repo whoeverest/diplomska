@@ -104,7 +104,7 @@ class CodeGenHigh(object):
   def init(self, usr_mem_size=0, stack_size=4):
     code = CodeGen()
 
-    code.comment('init m_' + str(usr_mem_size) + ' s_' + str(stack_size))
+    code.comment('init_m_' + str(usr_mem_size) + '_s_' + str(stack_size))
 
     # REG_A +
     # REG_B, REG_C, REG_D +
@@ -115,7 +115,7 @@ class CodeGenHigh(object):
           [1, 1, 0] * 3 + \
           [1, 1, 0] * usr_mem_size + \
           [1, 0, 0] + \
-          [1, 1, 0] * (stack_size - 1) \
+          [1, 1, 0] * (stack_size - 1)
 
     for val in mem:
       code.set_and_next(val)

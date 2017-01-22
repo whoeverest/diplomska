@@ -136,6 +136,34 @@ def lt(expr_a, expr_b):
   res.append(('bnot', None))
   return res
 
+def bool(expr):
+  res = []
+  res.extend(expr)
+  res.append(('bnot', None))
+  res.append(('bnot', None))
+  return res
+
+def band(expr_a, expr_b):
+  res = []
+  res.extend(expr_a)
+  res.extend(expr_b)
+  res.append(('band', None))
+  return res
+
+def bor(expr_a, expr_b):
+  return bnot(band(bnot(expr_a), bnot(expr_b)))
+
+def bor3(expr_a, expr_b, expr_c):
+  a_or_b = bnot(band(bnot(expr_a), bnot(expr_b)))
+  a_or_b_or_c = bnot(band(bnot(a_or_b), bnot(expr_c)))
+  return a_or_b_or_c
+
+def bnot(expr):
+  res = []
+  res.extend(expr)
+  res.append(('bnot', None))
+  return res
+
 def lte(expr_a, expr_b):
   return gte(expr_b, expr_a) # switched places
 
@@ -144,6 +172,7 @@ def if_expr(cond_expr, then_expr, else_expr=None):
   res.extend(cond_expr)
 
   res.append(('jfz', None))
+  res.append(('pop', None))
   res.extend(then_expr)
 
   # make sure we don't jump backwards
@@ -155,6 +184,7 @@ def if_expr(cond_expr, then_expr, else_expr=None):
     res.extend(cond_expr)
     res.append(('bnot', None))
     res.append(('jfz', None))
+    res.append(('pop', None))
     res.extend(else_expr)
     res.append(('push', 0))
     res.append(('jbnz', None))
@@ -182,12 +212,12 @@ def blck(*exprs):
 
 
 addr = {
-  'memory': 4,  'm1': 5,  'm2': 6,  'm3': 7,  'm4': 8,  'm5': 9,  # memory tape
-  'program': 10, 'p1': 11, 'p2': 12, 'p3': 13, 'p4': 14, 'p5': 15, # program tape
-  'm_ptr': 16, # memory arr ptr
-  'p_ptr': 17, # program arr ptr
-  'curr_instr': 18,
-  'curr_mem': 19
+  'memory': 4,  'm1': 5,  'm2': 6,  'm3': 7,  'm4': 8,  'm5': 9, 'm6': 10,   # memory tape
+  'program': 11, 'p1': 12, 'p2': 13, 'p3': 14, 'p4': 15, 'p5': 16, 'p6': 17, # program tape
+  'm_ptr': 18, # memory arr ptr
+  'p_ptr': 19, # program arr ptr
+  'curr_instr': 20,
+  'curr_mem': 21
 }
 
 def a(var):
@@ -199,16 +229,19 @@ def a(var):
 # >: 3
 # ,: 4
 # .: 5
+# [: 6, 8, 10 (different codes are used for matching parenthesis)
+# ]: 7, 9, 11
 
 bf_in_bf_code = blck(
   # init
-  assign_arr(a('memory'), [10, 10, 10, 10, 10, 10]),
-  assign_arr(a('program'), [4, 3, 4, 3, 4, 3]),
+  assign_arr(a('memory'), [5, 0, 0, 0, 0, 0, 0]),
+  assign_arr(a('program'), [6, 0, 7, 1, 1, 5, 5]),
   assign(a('m_ptr'), const(a('memory'))),
   assign(a('p_ptr'), const(a('program'))),
 
+  # while program ptr is within code bounds:
   while_expr(
-    lt(load(a('p_ptr')), const(16)), # while program ptr is within code bounds:
+    lt(load(a('p_ptr')), const(18)),
     blck(
       assign(a('curr_instr'), load_dyn(load(a('p_ptr')))),
       
@@ -225,7 +258,8 @@ bf_in_bf_code = blck(
           assign_dyn(
             load(a('m_ptr')),
             load(a('curr_mem'))
-          )
+          ),
+          assign(a('p_ptr'), add(load(a('p_ptr')), const(1))),
         )
       ),
 
@@ -242,7 +276,8 @@ bf_in_bf_code = blck(
           assign_dyn(
             load(a('m_ptr')),
             load(a('curr_mem'))
-          )
+          ),
+          assign(a('p_ptr'), add(load(a('p_ptr')), const(1))),
         )
       ),
 
@@ -253,7 +288,8 @@ bf_in_bf_code = blck(
           assign(
             a('m_ptr'),
             subtract(load(a('m_ptr')), const(1))
-          )
+          ),
+          assign(a('p_ptr'), add(load(a('p_ptr')), const(1))),
         )
       ),
 
@@ -264,7 +300,8 @@ bf_in_bf_code = blck(
           assign(
             a('m_ptr'),
             add(load(a('m_ptr')), const(1))
-          )
+          ),
+          assign(a('p_ptr'), add(load(a('p_ptr')), const(1))),
         )
       ),
 
@@ -275,7 +312,8 @@ bf_in_bf_code = blck(
           assign_dyn(
             load(a('m_ptr')),
             read()
-          )
+          ),
+          assign(a('p_ptr'), add(load(a('p_ptr')), const(1))),
         )
       ),
 
@@ -283,15 +321,116 @@ bf_in_bf_code = blck(
       if_expr(
         eq(load(a('curr_instr')), const(5)),
         blck(
-          prnt(load_dyn(load(a('m_ptr'))))
+          prnt(load_dyn(load(a('m_ptr')))),
+          assign(a('p_ptr'), add(load(a('p_ptr')), const(1))),
+        ),
+      ),
+
+      # LEFT BRACKET: 6, 8, 10
+      if_expr(
+        bor3(
+          eq(load(a('curr_instr')), const(6)),
+          eq(load(a('curr_instr')), const(8)),
+          eq(load(a('curr_instr')), const(10))
+        ),
+        blck(
+          #  mem[mem_ptr] == 0, find matching paren, else go right one
+          if_expr(
+            eq(load_dyn(load(a('m_ptr'))), const(0)),
+
+            # then:
+            blck(
+              # If we're at `6`:
+              #   find matching `7`
+              if_expr(
+                eq(load(a('curr_instr')), const(6)),
+                while_expr(
+                  neq(load_dyn(load(a('p_ptr'))), const(7)),
+                  blck(
+                    assign(a('p_ptr'), add(load(a('p_ptr')), const(1))),
+                  ),
+                )
+              ),
+
+              # If we're at `8`:
+              #   find matching `9`
+              if_expr(
+                eq(load(a('curr_instr')), const(8)),
+                while_expr(
+                  neq(load_dyn(load(a('p_ptr'))), const(9)),
+                  assign(a('p_ptr'), add(load(a('p_ptr')), const(1))),
+                ),
+              ),
+
+              # If we're at `10`:
+              #   find matching `11`
+              if_expr(
+                eq(load(a('curr_instr')), const(10)),
+                while_expr(
+                  neq(load_dyn(load(a('p_ptr'))), const(11)),
+                  assign(a('p_ptr'), add(load(a('p_ptr')), const(1))),
+                ),
+              ),
+            ),
+
+            # else:
+            assign(a('p_ptr'), add(load(a('p_ptr')), const(1))),
+          )
         )
       ),
 
-      # move code pointer to the right
-      assign(
-        a('p_ptr'),
-        add(load(a('p_ptr')), const(1))
-      )
+      # RIGHT BRACKET: 7, 9, 11
+      if_expr(
+        bor3(
+          eq(load(a('curr_instr')), const(7)),
+          eq(load(a('curr_instr')), const(9)),
+          eq(load(a('curr_instr')), const(11))
+        ),
+        blck(
+          # If mem[mem_ptr] == 0, then go right, else find the matching paren
+          if_expr(
+            eq(load_dyn(load(a('m_ptr'))), const(0)),
+
+            # then:
+            assign(a('p_ptr'), add(load(a('p_ptr')), const(1))),
+
+            # else:
+            blck(
+              # If we're at `7`:
+              #   find matching `6`
+              if_expr(
+                eq(load(a('curr_instr')), const(7)),
+                while_expr(
+                  neq(load_dyn(load(a('p_ptr'))), const(6)),
+                  blck(
+                    assign(a('p_ptr'), subtract(load(a('p_ptr')), const(1))),
+                  ),
+                )
+              ),
+
+              # If we're at `9`:
+              #   find matching `8`
+              if_expr(
+                eq(load(a('curr_instr')), const(9)),
+                while_expr(
+                  neq(load_dyn(load(a('p_ptr'))), const(8)),
+                  assign(a('p_ptr'), subtract(load(a('p_ptr')), const(1))),
+                ),
+              ),
+
+              # If we're at `10`:
+              #   find matching `11`
+              if_expr(
+                eq(load(a('curr_instr')), const(11)),
+                while_expr(
+                  neq(load_dyn(load(a('p_ptr'))), const(10)),
+                  assign(a('p_ptr'), subtract(load(a('p_ptr')), const(1))),
+                ),
+              ),
+            ),            
+          ),
+        )
+      ),
     )
   )
 )
@@ -302,10 +441,17 @@ bf_in_bf_code = blck(
 from brain_machine import sm_to_brainfuck
 from bf import Brainfuck
 
-bf_code = sm_to_brainfuck(bf_in_bf_code, usr_mem_size=len(addr), stack_size=15)
+bf_code = sm_to_brainfuck(bf_in_bf_code, usr_mem_size=len(addr), stack_size=20)
 
 machine = Brainfuck(bf_code)
-machine.input = [50, 30, 14]
+machine.input = []
 machine.run()
 
 print machine
+
+# profiler
+# for a1, a2 in zip(machine.annotations, machine.annotations[1:]):
+#   start = a1[0]
+#   end = a2[0]
+#   slice = machine.execution_log[start:end]
+#   print a1[1], sum(slice)

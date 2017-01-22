@@ -13,7 +13,7 @@ class Brainfuck(object):
       ']': 'jbnz'
     }
 
-    self.memory = [0] * (40 * 3)
+    self.memory = [0] * (50 * 3)
     self.pointer = 0
     self.code_pointer = 0
     self.input = []
